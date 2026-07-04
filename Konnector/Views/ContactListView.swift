@@ -3,16 +3,10 @@ import SwiftData
 import SwiftUI
 
 struct ContactListView: View {
+    let onSelect: (ContactSnapshot) -> Void
     @Environment(ContactSyncService.self) private var syncService
     @Query(sort: \ContactSnapshot.sortName) private var contacts: [ContactSnapshot]
-    @State private var searchText = ""
     @State private var isAccessPickerPresented = false
-    @State private var selectedContact: SystemContact?
-    @State private var isContactUnavailablePresented = false
-
-    private var filteredContacts: [ContactSnapshot] {
-        contacts.filter { $0.matches(search: searchText) }
-    }
 
     var body: some View {
         NavigationStack {
@@ -25,9 +19,9 @@ struct ContactListView: View {
                             limitedAccessSection
                         }
 
-                        ForEach(filteredContacts) { contact in
+                        ForEach(contacts) { contact in
                             Button {
-                                open(contact)
+                                onSelect(contact)
                             } label: {
                                 ContactRow(contact: contact)
                             }
@@ -35,33 +29,13 @@ struct ContactListView: View {
                         }
                     }
                     .listStyle(.plain)
-                    .overlay {
-                        if filteredContacts.isEmpty {
-                            ContentUnavailableView.search(text: searchText)
-                        }
-                    }
                 }
             }
             .navigationTitle("Contacts")
-            .searchable(text: $searchText, prompt: "Name, phone, or email")
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    syncToolbarContent
-                }
-            }
             .contactAccessPicker(isPresented: $isAccessPickerPresented) { _ in
                 Task {
                     await syncService.refreshAuthorization()
                 }
-            }
-            .sheet(item: $selectedContact) { contact in
-                SystemContactView(contact: contact.value)
-                    .ignoresSafeArea()
-            }
-            .alert("Contact unavailable", isPresented: $isContactUnavailablePresented) {
-                Button("OK", role: .cancel) {}
-            } message: {
-                Text("This contact is no longer available in Apple Contacts.")
             }
             .alert("Couldn’t sync contacts", isPresented: syncErrorBinding) {
                 Button("Try Again") { syncService.retry() }
@@ -108,18 +82,6 @@ struct ContactListView: View {
         }
     }
 
-    @ViewBuilder
-    private var syncToolbarContent: some View {
-        if syncService.syncState == .syncing {
-            ProgressView()
-                .accessibilityLabel("Syncing contacts")
-        } else {
-            Button("Sync", systemImage: "arrow.clockwise") {
-                syncService.scheduleSync()
-            }
-        }
-    }
-
     private var syncErrorBinding: Binding<Bool> {
         Binding(
             get: {
@@ -138,21 +100,9 @@ struct ContactListView: View {
         else { "An unknown error occurred." }
     }
 
-    private func open(_ contact: ContactSnapshot) {
-        Task {
-            do {
-                selectedContact = try await syncService.contact(identifier: contact.sourceIdentifier)
-                if selectedContact == nil {
-                    isContactUnavailablePresented = true
-                }
-            } catch {
-                isContactUnavailablePresented = true
-            }
-        }
-    }
 }
 
-private struct ContactRow: View {
+struct ContactRow: View {
     let contact: ContactSnapshot
 
     var body: some View {
@@ -194,8 +144,4 @@ private struct ContactRow: View {
                 .background(.tint.opacity(0.12), in: .circle)
         }
     }
-}
-
-extension SystemContact: Identifiable {
-    var id: String { value.identifier }
 }

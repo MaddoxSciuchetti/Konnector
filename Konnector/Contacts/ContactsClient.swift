@@ -1,4 +1,5 @@
 import Contacts
+import ContactsUI
 import Foundation
 
 enum ContactAuthorization: Equatable, Sendable {
@@ -13,8 +14,20 @@ enum ContactAuthorization: Equatable, Sendable {
     }
 }
 
-struct SystemContact: @unchecked Sendable {
+enum SystemContactPresentation: Equatable, Sendable {
+    case existing
+    case preview
+}
+
+struct SystemContact: Identifiable, @unchecked Sendable {
     let value: CNContact
+    let presentation: SystemContactPresentation
+
+    var id: String { value.identifier }
+}
+
+private struct SendableContactKeyDescriptor: @unchecked Sendable {
+    let value: any CNKeyDescriptor
 }
 
 protocol ContactsClientProtocol: Sendable {
@@ -49,12 +62,17 @@ actor ContactsClient: ContactsClientProtocol {
     }
 
     func fetchContact(identifier: String) async throws -> SystemContact? {
+        let requiredContactCardKeys = await MainActor.run {
+            SendableContactKeyDescriptor(
+                value: CNContactViewController.descriptorForRequiredKeys()
+            )
+        }
         do {
             let contact = try store.unifiedContact(
                 withIdentifier: identifier,
-                keysToFetch: Self.keysToFetch
+                keysToFetch: Self.keysToFetch + [requiredContactCardKeys.value]
             )
-            return SystemContact(value: contact)
+            return SystemContact(value: contact, presentation: .existing)
         } catch let error as CNError where error.code == .recordDoesNotExist {
             return nil
         }

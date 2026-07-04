@@ -1,15 +1,28 @@
 import SwiftUI
 
+enum AppMode: Equatable {
+    case live
+    case demo
+}
+
 enum AppRoute: Equatable {
     case onboarding
     case contacts
 
-    static func resolve(hasCompletedOnboarding: Bool, authorization: ContactAuthorization) -> AppRoute {
-        hasCompletedOnboarding && authorization.canReadContacts ? .contacts : .onboarding
+    static func resolve(
+        hasCompletedOnboarding: Bool,
+        authorization: ContactAuthorization,
+        appMode: AppMode
+    ) -> AppRoute {
+        if appMode == .demo {
+            return .contacts
+        }
+        return hasCompletedOnboarding && authorization.canReadContacts ? .contacts : .onboarding
     }
 }
 
 struct RootView: View {
+    let appMode: AppMode
     @Environment(ContactSyncService.self) private var syncService
     @Environment(\.scenePhase) private var scenePhase
     @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
@@ -18,9 +31,10 @@ struct RootView: View {
         Group {
             if AppRoute.resolve(
                 hasCompletedOnboarding: hasCompletedOnboarding,
-                authorization: syncService.authorization
+                authorization: syncService.authorization,
+                appMode: appMode
             ) == .contacts {
-                ContactListView()
+                MainTabView()
             } else {
                 OnboardingView(hasCompletedOnboarding: $hasCompletedOnboarding)
             }

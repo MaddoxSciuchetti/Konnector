@@ -11,3 +11,22 @@ TEAM_ID=AB12C3DE45; DEVICE_NAME="iPhone von Emilian"; xcodebuild -project Konnec
 ```
 
 The asset-catalog override works around the current Xcode/CoreSimulator version mismatch. Remove it after updating the local Xcode platform components. The first installation may also require selecting the same signing team for the Konnector target in Xcode.
+
+## Run in Simulator with demo contacts
+
+This opens Simulator, waits for its default iPhone to boot, builds and installs Konnector, then launches an isolated in-memory demo containing eight contacts:
+
+```sh
+open -a Simulator
+for _ in {1..60}; do
+  xcrun simctl list devices | grep -q '(Booted)' && break
+  sleep 1
+done
+xcrun simctl bootstatus booted -b && \
+xcodebuild -project Konnector.xcodeproj -scheme Konnector -configuration Debug -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' -derivedDataPath .build/SimulatorDerivedData EXCLUDED_SOURCE_FILE_NAMES=Assets.xcassets build && \
+xcrun simctl install booted .build/SimulatorDerivedData/Build/Products/Debug-iphonesimulator/Konnector.app && \
+(xcrun simctl terminate booted com.konnector.app 2>/dev/null || true) && \
+xcrun simctl launch booted com.konnector.app --demo-data
+```
+
+If `simctl` reports that CoreSimulator is unavailable or out of date, update Xcode/macOS platform components or restart the Mac before retrying. Demo mode never requests Contacts permission and never writes to the production contact store.
