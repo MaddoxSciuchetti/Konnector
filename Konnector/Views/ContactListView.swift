@@ -3,10 +3,14 @@ import SwiftData
 import SwiftUI
 
 struct ContactListView: View {
-    let onSelect: (ContactSnapshot) -> Void
     @Environment(ContactSyncService.self) private var syncService
     @Query(sort: \ContactSnapshot.sortName) private var contacts: [ContactSnapshot]
+    @AppStorage("contactGroupMode") private var groupModeRawValue = ContactGroupMode.list.rawValue
     @State private var isAccessPickerPresented = false
+
+    private var groupMode: ContactGroupMode {
+        ContactGroupMode(rawValue: groupModeRawValue) ?? .list
+    }
 
     var body: some View {
         NavigationStack {
@@ -19,19 +23,21 @@ struct ContactListView: View {
                             limitedAccessSection
                         }
 
-                        ForEach(contacts) { contact in
-                            Button {
-                                onSelect(contact)
-                            } label: {
-                                ContactRow(contact: contact)
-                            }
-                            .buttonStyle(.plain)
-                        }
+                        GroupedContactListContent(contacts: contacts, groupMode: groupMode)
                     }
                     .listStyle(.plain)
+                    .scrollContentBackground(.hidden)
+                    .background(K.Color.screenBackground)
                 }
             }
             .navigationTitle("Contacts")
+            .toolbar {
+                if !contacts.isEmpty {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        ContactGroupModePicker()
+                    }
+                }
+            }
             .contactAccessPicker(isPresented: $isAccessPickerPresented) { _ in
                 Task {
                     await syncService.refreshAuthorization()
@@ -62,10 +68,10 @@ struct ContactListView: View {
                 Button("Choose Contacts") {
                     isAccessPickerPresented = true
                 }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(.kPrimary(size: .medium))
             } else if syncService.syncState != .syncing {
                 Button("Sync Again") { syncService.scheduleSync() }
-                    .buttonStyle(.bordered)
+                    .buttonStyle(.kSecondary(size: .medium))
             }
         }
     }
@@ -99,33 +105,40 @@ struct ContactListView: View {
         if case let .failed(message) = syncService.syncState { message }
         else { "An unknown error occurred." }
     }
-
 }
 
 struct ContactRow: View {
     let contact: ContactSnapshot
 
     var body: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: K.Spacing.md) {
             avatar
-            VStack(alignment: .leading, spacing: 3) {
-                Text(contact.displayName)
-                    .font(.body.weight(.medium))
-                    .foregroundStyle(.primary)
-                if let subtitle = contact.subtitle {
-                    Text(subtitle)
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
+
+            VStack(alignment: .leading, spacing: K.Spacing.sm) {
+                HStack(spacing: K.Spacing.sm) {
+                    Text(contact.primaryLabel)
+                        .font(.body.weight(.medium))
+                        .foregroundStyle(.primary)
                         .lineLimit(1)
+
+                    if contact.isNewlyAdded {
+                        ContactTagPill(
+                            icon: "sparkles",
+                            title: "New",
+                            tint: K.Color.primary,
+                            style: .compact
+                        )
+                    }
                 }
+
+                ContactBadgesRow(badgeIDs: contact.badgeIDs, style: .compact)
             }
-            Spacer()
-            Image(systemName: "chevron.right")
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(.tertiary)
+
+            Spacer(minLength: K.Spacing.xs)
+
+            ContactScoreBadge(score: contact.overallScore, size: K.Size.ScoreBadge.regular)
         }
-        .contentShape(.rect)
-        .padding(.vertical, 4)
+        .kContactCard()
     }
 
     @ViewBuilder
@@ -134,14 +147,25 @@ struct ContactRow: View {
             Image(uiImage: image)
                 .resizable()
                 .scaledToFill()
-                .frame(width: 44, height: 44)
+                .frame(width: K.Size.Avatar.sm, height: K.Size.Avatar.sm)
                 .clipShape(.circle)
         } else {
             Text(contact.initials)
                 .font(.subheadline.weight(.semibold))
-                .foregroundStyle(.tint)
-                .frame(width: 44, height: 44)
-                .background(.tint.opacity(0.12), in: .circle)
+                .foregroundStyle(K.Color.primary)
+                .frame(width: K.Size.Avatar.sm, height: K.Size.Avatar.sm)
+                .background(K.Color.primarySoft, in: .circle)
         }
+    }
+}
+
+enum ContactListRowStyle {
+    static var insets: EdgeInsets {
+        EdgeInsets(
+            top: K.Spacing.sm,
+            leading: K.Layout.screenHorizontal,
+            bottom: K.Spacing.sm,
+            trailing: K.Layout.screenHorizontal
+        )
     }
 }
