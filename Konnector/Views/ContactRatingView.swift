@@ -118,16 +118,31 @@ struct ContactRatingView: View {
     }
 
     private var dataTabContent: some View {
-        VStack(spacing: K.Layout.sectionSpacing) {
-            HStack(spacing: K.Spacing.md) {
-                ContactLinkedInConnectView(contact: contact, layout: .button)
-                ContactVoiceNotesView(contact: contact, layout: .button)
+        VStack(alignment: .leading, spacing: K.Layout.sectionSpacing) {
+            VStack(alignment: .leading, spacing: K.Spacing.md) {
+                sectionHeader("Socials & Notes")
+
+                HStack(spacing: K.Spacing.md) {
+                    ContactLinkedInConnectView(contact: contact, layout: .button)
+                    ContactVoiceNotesView(contact: contact, layout: .button)
+                }
+
+                ContactLinkedInConnectView(contact: contact, layout: .details)
+                ContactVoiceNotesView(contact: contact, layout: .details)
             }
 
-            ContactLinkedInConnectView(contact: contact, layout: .details)
-            ContactVoiceNotesView(contact: contact, layout: .details)
-            ContactCareView(contact: contact)
+            VStack(alignment: .leading, spacing: K.Spacing.md) {
+                sectionHeader("Care")
+
+                ContactCareView(contact: contact)
+            }
         }
+    }
+
+    private func sectionHeader(_ title: String) -> some View {
+        Text(title)
+            .font(K.Typography.sectionTitle)
+            .foregroundStyle(.secondary)
     }
 
     private var ratingTabContent: some View {
