@@ -6,11 +6,12 @@ struct KonnectorApp: App {
     private let modelContainer: ModelContainer
     private let appMode: AppMode
     @State private var syncService: ContactSyncService
+    @State private var voiceNoteRecorder = VoiceNoteRecorder()
 
     init() {
         do {
             let mode: AppMode = ProcessInfo.processInfo.arguments.contains("--demo-data") ? .demo : .live
-            let schema = Schema([ContactSnapshot.self])
+            let schema = Schema([ContactSnapshot.self, ContactVoiceNote.self, ContactCareItem.self, BadgeDefinition.self])
             let configuration: ModelConfiguration
             let contactsClient: any ContactsClientProtocol
 
@@ -39,9 +40,12 @@ struct KonnectorApp: App {
                     cloudKitDatabase: .none
                 )
                 contactsClient = ContactsClient()
+                try VoiceNoteFiles.ensureDirectoryExists()
             }
 
             let container = try ModelContainer(for: schema, configurations: [configuration])
+            try BadgeCatalogService.ensureDefaults(in: container.mainContext)
+            try container.mainContext.save()
             modelContainer = container
             appMode = mode
             _syncService = State(
@@ -59,6 +63,8 @@ struct KonnectorApp: App {
         WindowGroup {
             RootView(appMode: appMode)
                 .environment(syncService)
+                .environment(voiceNoteRecorder)
+                .tint(K.Color.primary)
         }
         .modelContainer(modelContainer)
     }

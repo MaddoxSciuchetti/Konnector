@@ -22,6 +22,36 @@ final class ContactSyncServiceTests: XCTestCase {
         XCTAssertEqual(snapshots.first?.givenName, "Augusta")
     }
 
+    func testSyncMarksNewContactsAsNewlyAdded() async throws {
+        let container = try inMemoryContainer()
+        let client = MockContactsClient(contacts: [makeDTO(id: "1", name: "Ada")])
+        let service = ContactSyncService(modelContext: container.mainContext, contactsClient: client)
+
+        await service.syncNow()
+        let snapshot = try XCTUnwrap(try container.mainContext.fetch(FetchDescriptor<ContactSnapshot>()).first)
+
+        XCTAssertTrue(snapshot.isNewlyAdded)
+        XCTAssertFalse(snapshot.hasOpenedDetail)
+        XCTAssertTrue(snapshot.shouldShowInitialRatingPrompt)
+    }
+
+    func testSyncDoesNotMarkExistingContactsAsNewlyAdded() async throws {
+        let container = try inMemoryContainer()
+        let client = MockContactsClient(contacts: [makeDTO(id: "1", name: "Ada")])
+        let service = ContactSyncService(modelContext: container.mainContext, contactsClient: client)
+
+        await service.syncNow()
+        let snapshot = try XCTUnwrap(try container.mainContext.fetch(FetchDescriptor<ContactSnapshot>()).first)
+        snapshot.isNewlyAdded = false
+        snapshot.hasShownInitialRatingPrompt = true
+
+        await service.syncNow()
+        let refreshed = try XCTUnwrap(try container.mainContext.fetch(FetchDescriptor<ContactSnapshot>()).first)
+
+        XCTAssertFalse(refreshed.isNewlyAdded)
+        XCTAssertTrue(refreshed.hasShownInitialRatingPrompt)
+    }
+
     func testRevokedAuthorizationPurgesSnapshots() async throws {
         let container = try inMemoryContainer()
         let client = MockContactsClient(contacts: [makeDTO(id: "1", name: "Ada")])
@@ -49,9 +79,26 @@ final class ContactSyncServiceTests: XCTestCase {
         XCTAssertEqual(maximumConcurrentFetches, 1)
     }
 
+    func testSyncCreatesBirthdayCareItemFromContactBirthday() async throws {
+        let container = try inMemoryContainer()
+        var dto = makeDTO(id: "1", name: "Ada")
+        dto.birthday = ContactDateValue(year: 1815, month: 12, day: 10, calendarIdentifier: "gregorian")
+        let client = MockContactsClient(contacts: [dto])
+        let service = ContactSyncService(modelContext: container.mainContext, contactsClient: client)
+
+        await service.syncNow()
+        let snapshot = try XCTUnwrap(try container.mainContext.fetch(FetchDescriptor<ContactSnapshot>()).first)
+
+        XCTAssertEqual(snapshot.careItems.count, 1)
+        XCTAssertEqual(snapshot.careItems.first?.kind, .birthday)
+        XCTAssertEqual(snapshot.careItems.first?.month, 12)
+        XCTAssertEqual(snapshot.careItems.first?.day, 10)
+        XCTAssertEqual(snapshot.careItems.first?.year, 1815)
+    }
+
     private func inMemoryContainer() throws -> ModelContainer {
         let configuration = ModelConfiguration(isStoredInMemoryOnly: true)
-        return try ModelContainer(for: ContactSnapshot.self, configurations: configuration)
+        return try ModelContainer(for: ContactSnapshot.self, ContactCareItem.self, configurations: configuration)
     }
 }
 
