@@ -6,15 +6,17 @@ struct OnboardingView: View {
     @Binding var hasCompletedOnboarding: Bool
 
     var body: some View {
-        VStack(spacing: 28) {
+        VStack(spacing: K.Layout.sectionSpacing) {
             Spacer()
 
             Image(systemName: "person.crop.circle.badge.checkmark")
-                .font(.system(size: 72, weight: .light))
-                .foregroundStyle(.tint)
+                .font(.system(size: K.Size.Avatar.lg, weight: .light))
+                .foregroundStyle(K.Color.primary)
+                .frame(width: K.Size.Avatar.lg + K.Spacing.xxxl, height: K.Size.Avatar.lg + K.Spacing.xxxl)
+                .background(K.Color.primarySoft, in: Circle())
                 .accessibilityHidden(true)
 
-            VStack(spacing: 12) {
+            VStack(spacing: K.Spacing.md) {
                 Text("Your contacts, organized")
                     .font(.largeTitle.bold())
                     .multilineTextAlignment(.center)
@@ -29,14 +31,15 @@ struct OnboardingView: View {
 
             actionContent
         }
-        .padding(24)
+        .kScreenPadding()
+        .background(K.Color.screenBackground)
     }
 
     @ViewBuilder
     private var actionContent: some View {
         switch syncService.authorization {
         case .denied:
-            VStack(spacing: 12) {
+            VStack(spacing: K.Spacing.md) {
                 Text("Contacts access is turned off. Enable it in Settings to continue.")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
@@ -45,8 +48,7 @@ struct OnboardingView: View {
                     guard let url = URL(string: UIApplication.openSettingsURLString) else { return }
                     openURL(url)
                 }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.large)
+                .buttonStyle(.kPrimary)
             }
 
         case .restricted:
@@ -60,8 +62,7 @@ struct OnboardingView: View {
                 hasCompletedOnboarding = true
                 syncService.scheduleSync()
             }
-            .buttonStyle(.borderedProminent)
-            .controlSize(.large)
+            .buttonStyle(.kPrimary)
 
         case .notDetermined:
             Button {
@@ -77,11 +78,9 @@ struct OnboardingView: View {
                         .frame(maxWidth: .infinity)
                 } else {
                     Text("Sync Contacts")
-                        .frame(maxWidth: .infinity)
                 }
             }
-            .buttonStyle(.borderedProminent)
-            .controlSize(.large)
+            .buttonStyle(.kPrimary)
             .disabled(syncService.syncState == .syncing)
         }
     }
