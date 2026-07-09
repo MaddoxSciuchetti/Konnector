@@ -141,6 +141,12 @@ struct ContactVoiceNotesView: View {
         note.contact = contact
         contact.voiceNotes.append(note)
         modelContext.insert(note)
+
+        do {
+            try modelContext.save()
+        } catch {
+            errorMessage = "The voice note couldn’t be saved: \(error.localizedDescription)"
+        }
     }
 
     private func togglePlayback(for note: ContactVoiceNote) {
@@ -163,6 +169,7 @@ struct ContactVoiceNotesView: View {
         VoiceNoteFiles.deleteFile(named: note.fileName)
         contact.voiceNotes.removeAll { $0.id == note.id }
         modelContext.delete(note)
+        try? modelContext.save()
     }
 }
 
