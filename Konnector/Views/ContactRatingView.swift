@@ -122,30 +122,6 @@ struct ContactRatingView: View {
 
                 ContactCareView(contact: contact)
             }
-
-            if GraphAPIConfiguration.isEnabled {
-                VStack(alignment: .leading, spacing: K.Spacing.md) {
-                    sectionHeader("Network Intelligence")
-
-                    VStack(spacing: K.Spacing.sm) {
-                        NavigationLink {
-                            ContactNetworkView(contact: contact)
-                        } label: {
-                            Label("View Network", systemImage: "point.3.connected.trianglepath.dotted")
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                        }
-                        .buttonStyle(.kSecondary(size: .medium))
-
-                        NavigationLink {
-                            ContactCommonalitiesView(contact: contact)
-                        } label: {
-                            Label("What Do You Have in Common?", systemImage: "person.2.circle")
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                        }
-                        .buttonStyle(.kSecondary(size: .medium))
-                    }
-                }
-            }
         }
     }
 
