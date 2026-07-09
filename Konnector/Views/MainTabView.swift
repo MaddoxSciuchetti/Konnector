@@ -37,11 +37,7 @@ struct MainTabView: View {
     @State private var searchMode = ContactSearchMode.standard
 
     var body: some View {
-        if #available(iOS 27.0, *) {
-            tabViewWithProminentContacts()
-        } else {
-            tabViewWithCenteredContacts()
-        }
+        tabViewWithCenteredContacts
     }
 
     private var tabViewWithCenteredContacts: some View {
@@ -54,27 +50,7 @@ struct MainTabView: View {
                 ContactListView()
             }
 
-            Tab("Search", systemImage: "magnifyingglass", value: MainTab.search, role: .search) {
-                SearchContactsView(
-                    searchText: $searchText,
-                    searchMode: $searchMode
-                )
-            }
-        }
-    }
-
-    @available(iOS 27.0, *)
-    private var tabViewWithProminentContacts: some View {
-        TabView(selection: $selectedTab) {
-            Tab("Follow Up", systemImage: "checklist", value: MainTab.followUp) {
-                FollowUpView()
-            }
-
-            Tab("Contacts", systemImage: "person.2", value: MainTab.contacts, role: .prominent) {
-                ContactListView()
-            }
-
-            Tab("Search", systemImage: "magnifyingglass", value: MainTab.search, role: .search) {
+            Tab("Search", systemImage: "magnifyingglass", value: MainTab.search) {
                 SearchContactsView(
                     searchText: $searchText,
                     searchMode: $searchMode
