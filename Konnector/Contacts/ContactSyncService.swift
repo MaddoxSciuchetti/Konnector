@@ -14,6 +14,7 @@ final class ContactSyncService {
 
     private let modelContext: ModelContext
     private let contactsClient: any ContactsClientProtocol
+    private let graphSyncService: GraphSyncService?
     private var syncTask: Task<Void, Never>?
     private var shouldSyncAgain = false
     private var storeChangeObserver: NSObjectProtocol?
@@ -24,10 +25,12 @@ final class ContactSyncService {
 
     init(
         modelContext: ModelContext,
-        contactsClient: any ContactsClientProtocol = ContactsClient()
+        contactsClient: any ContactsClientProtocol = ContactsClient(),
+        graphSyncService: GraphSyncService? = nil
     ) {
         self.modelContext = modelContext
         self.contactsClient = contactsClient
+        self.graphSyncService = graphSyncService
         storeChangeObserver = NotificationCenter.default.addObserver(
             forName: .CNContactStoreDidChange,
             object: nil,
@@ -115,15 +118,18 @@ final class ContactSyncService {
         do {
             let imported = try await contactsClient.fetchContacts()
             let synchronizedAt = Date()
-            try replaceSnapshots(with: imported, synchronizedAt: synchronizedAt)
+            let deletedSourceIdentifiers = try replaceSnapshots(with: imported, synchronizedAt: synchronizedAt)
             lastSyncDate = synchronizedAt
             syncState = .idle
+            graphSyncService?.scheduleSync(deletedSourceIdentifiers: deletedSourceIdentifiers)
         } catch {
             syncState = .failed(error.localizedDescription)
         }
     }
 
-    private func replaceSnapshots(with imported: [ContactImportDTO], synchronizedAt: Date) throws {
+    @discardableResult
+    private func replaceSnapshots(with imported: [ContactImportDTO], synchronizedAt: Date) throws -> [String] {
+        var deletedSourceIdentifiers: [String] = []
         try modelContext.transaction {
             let existing = try modelContext.fetch(FetchDescriptor<ContactSnapshot>())
             var existingByIdentifier = Dictionary(uniqueKeysWithValues: existing.map { ($0.sourceIdentifier, $0) })
@@ -141,21 +147,27 @@ final class ContactSyncService {
             }
 
             for staleSnapshot in existingByIdentifier.values {
+                deletedSourceIdentifiers.append(staleSnapshot.sourceIdentifier)
                 VoiceNoteFiles.deleteFiles(for: staleSnapshot.voiceNotes)
                 modelContext.delete(staleSnapshot)
             }
         }
+        return deletedSourceIdentifiers
     }
 
     private func purgeSnapshots() {
         do {
+            var deletedSourceIdentifiers: [String] = []
             try modelContext.transaction {
+                let snapshots = try modelContext.fetch(FetchDescriptor<ContactSnapshot>())
+                deletedSourceIdentifiers = snapshots.map(\.sourceIdentifier)
                 let voiceNotes = try modelContext.fetch(FetchDescriptor<ContactVoiceNote>())
                 VoiceNoteFiles.deleteFiles(for: voiceNotes)
                 try modelContext.delete(model: ContactVoiceNote.self)
                 try modelContext.delete(model: ContactSnapshot.self)
             }
             lastSyncDate = nil
+            graphSyncService?.scheduleSync(deletedSourceIdentifiers: deletedSourceIdentifiers)
         } catch {
             syncState = .failed(error.localizedDescription)
         }

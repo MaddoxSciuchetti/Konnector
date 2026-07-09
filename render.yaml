@@ -1,0 +1,22 @@
+services:
+  - type: web
+    name: konnector-graph-api
+    runtime: node
+    plan: free
+    rootDir: konnector-graph-api
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_VERSION
+        value: "20"
+      - key: NEO4J_URI
+        sync: false
+      - key: NEO4J_USERNAME
+        sync: false
+      - key: NEO4J_PASSWORD
+        sync: false
+      - key: NEO4J_DATABASE
+        value: neo4j
+      - key: JWT_SECRET
+        generateValue: true

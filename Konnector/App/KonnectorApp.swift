@@ -6,6 +6,7 @@ struct KonnectorApp: App {
     private let modelContainer: ModelContainer
     private let appMode: AppMode
     @State private var syncService: ContactSyncService
+    @State private var graphSyncService: GraphSyncService
     @State private var voiceNoteRecorder = VoiceNoteRecorder()
 
     init() {
@@ -48,10 +49,13 @@ struct KonnectorApp: App {
             try container.mainContext.save()
             modelContainer = container
             appMode = mode
+            let graphSync = GraphSyncService(modelContext: container.mainContext, demoMode: mode == .demo)
+            _graphSyncService = State(initialValue: graphSync)
             _syncService = State(
                 initialValue: ContactSyncService(
                     modelContext: container.mainContext,
-                    contactsClient: contactsClient
+                    contactsClient: contactsClient,
+                    graphSyncService: graphSync
                 )
             )
         } catch {
@@ -63,6 +67,7 @@ struct KonnectorApp: App {
         WindowGroup {
             RootView(appMode: appMode)
                 .environment(syncService)
+                .environment(graphSyncService)
                 .environment(voiceNoteRecorder)
                 .tint(K.Color.primary)
         }

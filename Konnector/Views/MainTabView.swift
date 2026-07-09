@@ -4,11 +4,21 @@ import SwiftUI
 enum ContactSearchMode: String, CaseIterable {
     case standard
     case ai
+    case graph
+
+    static var allCases: [ContactSearchMode] {
+        var modes: [ContactSearchMode] = [.standard, .ai]
+        if GraphAPIConfiguration.isEnabled {
+            modes.append(.graph)
+        }
+        return modes
+    }
 
     var title: String {
         switch self {
         case .standard: "Standard"
         case .ai: "AI Search"
+        case .graph: "Graph"
         }
     }
 
@@ -141,6 +151,7 @@ private struct FollowUpRow: View {
 }
 
 struct SearchContactsView: View {
+    @Environment(GraphSyncService.self) private var graphSyncService
     @Binding var searchText: String
     @Binding var searchMode: ContactSearchMode
     @AppStorage("contactGroupMode") private var groupModeRawValue = ContactGroupMode.list.rawValue
@@ -149,6 +160,10 @@ struct SearchContactsView: View {
     @State private var aiQuery = ""
     @State private var aiResults: [ContactAISearchService.Match] = []
     @State private var aiSearchTask: Task<Void, Never>?
+    @State private var graphQuery = ""
+    @State private var graphResults: GraphSearchResponse?
+    @State private var graphErrorMessage: String?
+    @State private var graphSearchTask: Task<Void, Never>?
 
     private var groupMode: ContactGroupMode {
         ContactGroupMode(rawValue: groupModeRawValue) ?? .list
@@ -169,10 +184,12 @@ struct SearchContactsView: View {
                         standardSearchContent
                     case .ai:
                         aiSearchContent
+                    case .graph:
+                        graphSearchContent
                     }
                 }
             }
-            .navigationTitle(searchMode == .ai ? "AI Search" : "Search")
+            .navigationTitle(searchMode == .ai ? "AI Search" : searchMode == .graph ? "Graph Search" : "Search")
             .navigationBarTitleDisplayMode(.inline)
             .toolbarBackground(searchMode == .ai ? K.Color.primarySoft.opacity(0.55) : .clear, for: .navigationBar)
             .toolbarBackground(searchMode == .ai ? .visible : .automatic, for: .navigationBar)
@@ -189,8 +206,21 @@ struct SearchContactsView: View {
                     aiSearchTask?.cancel()
                     aiQuery = ""
                     aiResults = []
+                    graphSearchTask?.cancel()
+                    graphQuery = ""
+                    graphResults = nil
+                    graphErrorMessage = nil
+                } else if newMode == .ai {
+                    searchText = ""
+                    graphSearchTask?.cancel()
+                    graphQuery = ""
+                    graphResults = nil
+                    graphErrorMessage = nil
                 } else {
                     searchText = ""
+                    aiSearchTask?.cancel()
+                    aiQuery = ""
+                    aiResults = []
                 }
             }
         }
@@ -232,6 +262,123 @@ struct SearchContactsView: View {
             !searchText.isEmpty && !standardResults.isEmpty
         case .ai:
             !aiQuery.isEmpty && !aiResults.isEmpty
+        case .graph:
+            !graphQuery.isEmpty && graphResults != nil
+        }
+    }
+
+    @ViewBuilder
+    private var graphSearchContent: some View {
+        List {
+            Section {
+                TextField("Organization, badge, or name", text: $graphQuery)
+                    .textFieldStyle(.plain)
+                    .autocorrectionDisabled()
+                    .textInputAutocapitalization(.never)
+                    .onChange(of: graphQuery) { _, newValue in
+                        scheduleGraphSearch(for: newValue)
+                    }
+            } header: {
+                Label("Explore relationships", systemImage: "point.3.connected.trianglepath.dotted")
+            } footer: {
+                Text("Find coworkers, badge communities, and related contacts from the graph.")
+            }
+
+            if graphQuery.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                Section {
+                    ContentUnavailableView {
+                        Label("Graph Search", systemImage: "point.3.connected.trianglepath.dotted")
+                    } description: {
+                        Text("Try “mentor”, “Bletchley”, or a contact name.")
+                    }
+                    .listRowBackground(Color.clear)
+                }
+            } else if let graphErrorMessage {
+                Section {
+                    Text(graphErrorMessage)
+                        .foregroundStyle(.secondary)
+                }
+            } else if let graphResults {
+                if !graphResults.coworkers.isEmpty {
+                    Section("Coworkers") {
+                        ForEach(graphResults.coworkers) { match in
+                            graphResultRow(
+                                title: match.displayName,
+                                subtitle: "\(match.organizationName) · via \(match.anchorName)"
+                            )
+                        }
+                    }
+                }
+
+                if !graphResults.byBadge.isEmpty {
+                    Section("By Badge") {
+                        ForEach(graphResults.byBadge) { match in
+                            graphResultRow(
+                                title: match.displayName,
+                                subtitle: match.badgeTitle
+                            )
+                        }
+                    }
+                }
+
+                if !graphResults.related.isEmpty {
+                    Section("Related") {
+                        ForEach(graphResults.related) { match in
+                            graphResultRow(
+                                title: match.displayName,
+                                subtitle: "Related to \(match.anchorName)"
+                            )
+                        }
+                    }
+                }
+
+                if graphResults.coworkers.isEmpty
+                    && graphResults.byBadge.isEmpty
+                    && graphResults.related.isEmpty {
+                    Section {
+                        ContentUnavailableView {
+                            Label("No Graph Matches", systemImage: "person.crop.circle.badge.questionmark")
+                        } description: {
+                            Text("No relationship matches for that query.")
+                        }
+                        .listRowBackground(Color.clear)
+                    }
+                }
+            }
+        }
+        .listStyle(.insetGrouped)
+    }
+
+    private func graphResultRow(title: String, subtitle: String) -> some View {
+        VStack(alignment: .leading, spacing: K.Spacing.xs) {
+            Text(title)
+                .font(.body.weight(.medium))
+            Text(subtitle)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    private func scheduleGraphSearch(for query: String) {
+        graphSearchTask?.cancel()
+        graphSearchTask = Task {
+            try? await Task.sleep(for: .milliseconds(300))
+            guard !Task.isCancelled else { return }
+
+            let trimmedQuery = query.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmedQuery.isEmpty else {
+                graphResults = nil
+                graphErrorMessage = nil
+                return
+            }
+
+            do {
+                graphResults = try await graphSyncService.searchGraph(query: trimmedQuery)
+                graphErrorMessage = nil
+            } catch {
+                graphResults = nil
+                graphErrorMessage = error.localizedDescription
+            }
         }
     }
 
@@ -395,7 +542,7 @@ private struct SearchModeToggle: View {
             .background {
                 if isSelected {
                     Capsule()
-                        .fill(mode == .ai ? K.Color.primary : K.Color.secondary)
+                        .fill(mode == .ai ? K.Color.primary : mode == .graph ? K.Color.primary.opacity(0.85) : K.Color.secondary)
                         .matchedGeometryEffect(id: "searchModeSelection", in: selectionNamespace)
                 }
             }
