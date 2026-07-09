@@ -86,10 +86,8 @@ final class ContactSnapshot {
     var note: String = ""
     /// True after the user opens this contact in Konnector for the first time.
     var hasOpenedDetail: Bool = false
-    /// True for contacts imported on their first sync; cleared after the initial rating prompt.
+    /// True for contacts imported on their first sync; cleared after the user opens the contact.
     var isNewlyAdded: Bool = false
-    /// True once the first-visit rating prompt has been shown and dismissed.
-    var hasShownInitialRatingPrompt: Bool = false
     /// Saved LinkedIn profile URL after connecting via QR scan.
     var linkedInProfileURL: String = ""
     /// When the user confirmed a LinkedIn connection for this contact.
@@ -182,16 +180,8 @@ final class ContactSnapshot {
         Double(intelligenceRating + integrityRating + driveRating) / 3
     }
 
-    var shouldShowInitialRatingPrompt: Bool {
-        !hasShownInitialRatingPrompt
-    }
-
     func markDetailOpened() {
         hasOpenedDetail = true
-    }
-
-    func completeInitialRatingPrompt() {
-        hasShownInitialRatingPrompt = true
         isNewlyAdded = false
     }
 

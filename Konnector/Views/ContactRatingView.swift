@@ -15,7 +15,6 @@ struct ContactRatingView: View {
     @State private var systemContact: SystemContact?
     @State private var isLoadingContactActions = false
     @State private var contactActionsError: String?
-    @State private var isInitialRatingPromptPresented = false
 
     private var badgeSelection: Binding<Set<String>> {
         Binding(
@@ -67,20 +66,7 @@ struct ContactRatingView: View {
         }
         .onAppear {
             contact.markDetailOpened()
-            if contact.shouldShowInitialRatingPrompt {
-                isInitialRatingPromptPresented = true
-            }
         }
-        .sheet(
-            isPresented: $isInitialRatingPromptPresented,
-            onDismiss: completeInitialRatingPrompt
-        ) {
-            InitialRatingPromptSheet(contact: contact, onComplete: completeInitialRatingPrompt)
-        }
-    }
-
-    private func completeInitialRatingPrompt() {
-        contact.completeInitialRatingPrompt()
     }
 
     private var profileNoteSection: some View {

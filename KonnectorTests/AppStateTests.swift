@@ -74,15 +74,13 @@ final class AppStateTests: XCTestCase {
         XCTAssertEqual(snapshot.primaryLabel, "team@example.com")
     }
 
-    func testInitialRatingPromptTracksFirstOpenAndCompletion() {
+    func testMarkDetailOpenedClearsNewlyAddedFlag() {
         let snapshot = ContactSnapshot(dto: makeDTO(id: "1", name: "Ada"), synchronizedAt: .now)
+        snapshot.isNewlyAdded = true
 
-        XCTAssertTrue(snapshot.shouldShowInitialRatingPrompt)
         snapshot.markDetailOpened()
-        XCTAssertTrue(snapshot.hasOpenedDetail)
 
-        snapshot.completeInitialRatingPrompt()
-        XCTAssertFalse(snapshot.shouldShowInitialRatingPrompt)
+        XCTAssertTrue(snapshot.hasOpenedDetail)
         XCTAssertFalse(snapshot.isNewlyAdded)
     }
 

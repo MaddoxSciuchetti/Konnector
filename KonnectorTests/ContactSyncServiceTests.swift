@@ -32,7 +32,6 @@ final class ContactSyncServiceTests: XCTestCase {
 
         XCTAssertTrue(snapshot.isNewlyAdded)
         XCTAssertFalse(snapshot.hasOpenedDetail)
-        XCTAssertTrue(snapshot.shouldShowInitialRatingPrompt)
     }
 
     func testSyncDoesNotMarkExistingContactsAsNewlyAdded() async throws {
@@ -43,13 +42,11 @@ final class ContactSyncServiceTests: XCTestCase {
         await service.syncNow()
         let snapshot = try XCTUnwrap(try container.mainContext.fetch(FetchDescriptor<ContactSnapshot>()).first)
         snapshot.isNewlyAdded = false
-        snapshot.hasShownInitialRatingPrompt = true
 
         await service.syncNow()
         let refreshed = try XCTUnwrap(try container.mainContext.fetch(FetchDescriptor<ContactSnapshot>()).first)
 
         XCTAssertFalse(refreshed.isNewlyAdded)
-        XCTAssertTrue(refreshed.hasShownInitialRatingPrompt)
     }
 
     func testRevokedAuthorizationPurgesSnapshots() async throws {
