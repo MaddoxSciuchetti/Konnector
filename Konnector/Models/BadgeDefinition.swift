@@ -8,6 +8,7 @@ final class BadgeDefinition {
     var title: String
     var systemImage: String
     var usesPrimaryTint: Bool
+    var tintPaletteKey: String
     var isCustom: Bool
     var createdAt: Date
     var sortOrder: Int
@@ -17,6 +18,7 @@ final class BadgeDefinition {
         title: String,
         systemImage: String,
         usesPrimaryTint: Bool = true,
+        tintPaletteKey: String = BadgeTintPalette.primary.rawValue,
         isCustom: Bool = false,
         createdAt: Date = .now,
         sortOrder: Int = 0
@@ -25,13 +27,22 @@ final class BadgeDefinition {
         self.title = title
         self.systemImage = systemImage
         self.usesPrimaryTint = usesPrimaryTint
+        self.tintPaletteKey = tintPaletteKey
         self.isCustom = isCustom
         self.createdAt = createdAt
         self.sortOrder = sortOrder
     }
 
+    var tintPalette: BadgeTintPalette {
+        if let builtin = ContactBadge(rawValue: identifier) {
+            return builtin.tintPalette
+        }
+        return BadgeTintPalette(rawValue: tintPaletteKey)
+            ?? (usesPrimaryTint ? .primary : .secondary)
+    }
+
     var tint: Color {
-        usesPrimaryTint ? K.Color.primary : K.Color.secondary
+        tintPalette.color
     }
 }
 
@@ -48,6 +59,7 @@ enum BadgeCatalogService {
                     title: builtin.title,
                     systemImage: builtin.systemImage,
                     usesPrimaryTint: builtin.usesPrimaryTint,
+                    tintPaletteKey: builtin.tintPalette.rawValue,
                     isCustom: false,
                     sortOrder: index
                 )
@@ -59,7 +71,7 @@ enum BadgeCatalogService {
     static func createCustom(
         title: String,
         systemImage: String = "tag.fill",
-        usesPrimaryTint: Bool = true,
+        tintPalette: BadgeTintPalette = .primary,
         in context: ModelContext
     ) throws -> BadgeDefinition {
         let trimmedTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -72,7 +84,8 @@ enum BadgeCatalogService {
             identifier: UUID().uuidString,
             title: trimmedTitle,
             systemImage: systemImage,
-            usesPrimaryTint: usesPrimaryTint,
+            usesPrimaryTint: tintPalette == .primary,
+            tintPaletteKey: tintPalette.rawValue,
             isCustom: true,
             sortOrder: count
         )

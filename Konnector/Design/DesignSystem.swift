@@ -127,6 +127,13 @@ enum K {
             blend(from: secondary, to: primary, amount: amount)
         }
 
+        /// Per-badge accents derived from the Konnector primary/secondary blend curve.
+        static let badgeFriend = primary
+        static let badgeColleague = secondary
+        static let badgeClient = blend(amount: 0.28)
+        static let badgeMentor = blend(amount: 0.76)
+        static let badgeFamily = blend(amount: 0.52)
+
         static func blend(from: SwiftUI.Color, to: SwiftUI.Color, amount: Double) -> SwiftUI.Color {
             let clamped = min(max(amount, 0), 1)
 
@@ -154,6 +161,39 @@ enum K {
             #else
             return clamped < 0.5 ? from : to
             #endif
+        }
+    }
+}
+
+// MARK: - Badge tint palette
+
+/// Brand-derived badge colors for built-in and custom contact tags.
+enum BadgeTintPalette: String, CaseIterable, Identifiable, Sendable {
+    case primary
+    case secondary
+    case sky
+    case slate
+    case mist
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .primary: "Vibrant"
+        case .secondary: "Slate"
+        case .sky: "Sky"
+        case .slate: "Deep Slate"
+        case .mist: "Mist"
+        }
+    }
+
+    var color: Color {
+        switch self {
+        case .primary: K.Color.badgeFriend
+        case .secondary: K.Color.badgeColleague
+        case .sky: K.Color.badgeMentor
+        case .slate: K.Color.badgeClient
+        case .mist: K.Color.badgeFamily
         }
     }
 }

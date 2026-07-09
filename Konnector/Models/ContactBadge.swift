@@ -29,17 +29,21 @@ enum ContactBadge: String, CaseIterable, Identifiable, Codable, Hashable, Sendab
         }
     }
 
-    var tint: Color {
+    var tintPalette: BadgeTintPalette {
         switch self {
-        case .friend, .mentor, .family: K.Color.primary
-        case .colleague, .client: K.Color.secondary
+        case .friend: .primary
+        case .colleague: .secondary
+        case .client: .slate
+        case .mentor: .sky
+        case .family: .mist
         }
     }
 
+    var tint: Color {
+        tintPalette.color
+    }
+
     var usesPrimaryTint: Bool {
-        switch self {
-        case .friend, .mentor, .family: true
-        case .colleague, .client: false
-        }
+        tintPalette == .primary
     }
 }

@@ -16,25 +16,20 @@ struct ContactTagPill: View {
         style == .compact ? K.Typography.badgeCompact : K.Typography.badgeRegular
     }
 
-    private var horizontalPadding: CGFloat {
-        style == .compact ? K.Spacing.sm + 2 : K.Spacing.md
-    }
-
-    private var verticalPadding: CGFloat {
-        style == .compact ? K.Spacing.sm - 2 : K.Spacing.sm
+    private var controlSize: ControlSize {
+        style == .compact ? .small : .regular
     }
 
     var body: some View {
-        HStack(spacing: K.Spacing.xs) {
-            Image(systemName: icon)
-                .font(font)
-            Text(title)
+        Button(action: {}) {
+            Label(title, systemImage: icon)
                 .font(font)
         }
-        .foregroundStyle(tint)
-        .padding(.horizontal, horizontalPadding)
-        .padding(.vertical, verticalPadding)
-        .background(tint.opacity(0.12), in: Capsule())
+        .buttonStyle(.bordered)
+        .buttonBorderShape(.capsule)
+        .controlSize(controlSize)
+        .tint(tint)
+        .allowsHitTesting(false)
     }
 }
 
@@ -117,8 +112,13 @@ struct ContactBadgePicker: View {
                 }
             } label: {
                 Label("Choose Badges", systemImage: "tag")
+                    .font(K.Typography.buttonMedium)
+                    .frame(maxWidth: .infinity)
             }
-            .buttonStyle(.kPrimary(size: .medium, corner: .prominent, expands: true))
+            .buttonStyle(.bordered)
+            .buttonBorderShape(.capsule)
+            .controlSize(.large)
+            .tint(K.Color.primary)
         }
         .sheet(isPresented: $isAddBadgePresented) {
             AddCustomBadgeSheet()
@@ -142,7 +142,7 @@ struct AddCustomBadgeSheet: View {
 
     @State private var title = ""
     @State private var selectedIcon = AddCustomBadgeSheet.iconOptions[0]
-    @State private var usesPrimaryTint = true
+    @State private var selectedPalette = BadgeTintPalette.primary
     @State private var errorMessage: String?
 
     static let iconOptions = [
@@ -157,13 +157,30 @@ struct AddCustomBadgeSheet: View {
                 Section {
                     TextField("Badge name", text: $title)
                         .textInputAutocapitalization(.words)
-
-                    Picker("Color", selection: $usesPrimaryTint) {
-                        Text("Primary").tag(true)
-                        Text("Secondary").tag(false)
-                    }
                 } header: {
                     Text("New Badge")
+                }
+
+                Section {
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: K.Spacing.sm) {
+                            ForEach(BadgeTintPalette.allCases) { palette in
+                                Button {
+                                    selectedPalette = palette
+                                } label: {
+                                    Text(palette.title)
+                                        .font(K.Typography.badgeCompact)
+                                }
+                                .buttonStyle(selectedPalette == palette ? .borderedProminent : .bordered)
+                                .buttonBorderShape(.capsule)
+                                .controlSize(.small)
+                                .tint(palette.color)
+                            }
+                        }
+                    }
+                    .padding(.vertical, K.Spacing.xs)
+                } header: {
+                    Text("Color")
                 }
 
                 Section {
@@ -174,14 +191,12 @@ struct AddCustomBadgeSheet: View {
                             } label: {
                                 Image(systemName: icon)
                                     .font(.body.weight(.semibold))
-                                    .foregroundStyle(selectedIcon == icon ? .white : K.Color.primary)
                                     .frame(width: 44, height: 44)
-                                    .background(
-                                        selectedIcon == icon ? K.Color.primary : K.Color.primarySoft,
-                                        in: Circle()
-                                    )
                             }
-                            .buttonStyle(.plain)
+                            .buttonStyle(selectedIcon == icon ? .borderedProminent : .bordered)
+                            .buttonBorderShape(.circle)
+                            .controlSize(.large)
+                            .tint(selectedPalette.color)
                         }
                     }
                     .padding(.vertical, K.Spacing.xs)
@@ -193,9 +208,8 @@ struct AddCustomBadgeSheet: View {
                     Section {
                         ForEach(customBadges, id: \.identifier) { badge in
                             HStack(spacing: K.Spacing.sm) {
-                                Image(systemName: badge.systemImage)
-                                    .foregroundStyle(badge.tint)
-                                Text(badge.title)
+                                BadgeDefinitionLabel(badge: badge, style: .compact)
+                                Spacer(minLength: 0)
                             }
                         }
                         .onDelete(perform: deleteCustomBadges)
@@ -238,7 +252,7 @@ struct AddCustomBadgeSheet: View {
             _ = try BadgeCatalogService.createCustom(
                 title: title,
                 systemImage: selectedIcon,
-                usesPrimaryTint: usesPrimaryTint,
+                tintPalette: selectedPalette,
                 in: modelContext
             )
             dismiss()
