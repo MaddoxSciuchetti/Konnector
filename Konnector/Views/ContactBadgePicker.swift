@@ -82,47 +82,59 @@ struct ContactBadgePicker: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: K.Spacing.md) {
-            if !selectedBadges.isEmpty {
-                FlowLayout(spacing: K.Spacing.sm) {
-                    ForEach(selectedBadges, id: \.identifier) { badge in
-                        BadgeDefinitionLabel(badge: badge, style: .regular)
-                    }
-                }
-            }
-
-            Menu {
-                ForEach(catalog, id: \.identifier) { badge in
-                    Button {
-                        toggle(badge.identifier)
-                    } label: {
-                        if selectedIDs.contains(badge.identifier) {
-                            Label(badge.title, systemImage: "checkmark")
-                        } else {
-                            Label(badge.title, systemImage: badge.systemImage)
-                        }
-                    }
-                }
-
-                Divider()
-
-                Button {
-                    isAddBadgePresented = true
-                } label: {
-                    Label("Add Custom Badge…", systemImage: "plus")
-                }
-            } label: {
-                Label("Choose Badges", systemImage: "tag")
-                    .font(K.Typography.buttonMedium)
-                    .frame(maxWidth: .infinity)
-            }
-            .buttonStyle(.bordered)
-            .buttonBorderShape(.capsule)
-            .controlSize(.large)
-            .tint(K.Color.primary)
+            selectedBadgesView
+            chooseBadgesMenu
         }
         .sheet(isPresented: $isAddBadgePresented) {
             AddCustomBadgeSheet()
         }
+    }
+
+    @ViewBuilder
+    private var selectedBadgesView: some View {
+        if !selectedBadges.isEmpty {
+            FlowLayout(spacing: K.Spacing.sm) {
+                ForEach(selectedBadges, id: \.identifier) { badge in
+                    BadgeDefinitionLabel(badge: badge, style: .regular)
+                }
+            }
+        }
+    }
+
+    private var chooseBadgesMenu: some View {
+        Menu {
+            badgeMenuItems
+            Divider()
+            Button {
+                isAddBadgePresented = true
+            } label: {
+                Label("Add Custom Badge…", systemImage: "plus")
+            }
+        } label: {
+            Label("Choose Badges", systemImage: "tag")
+                .font(K.Typography.buttonMedium)
+                .frame(maxWidth: .infinity)
+        }
+        .buttonStyle(.bordered)
+        .buttonBorderShape(.capsule)
+        .controlSize(.large)
+        .tint(K.Color.primary)
+    }
+
+    @ViewBuilder
+    private var badgeMenuItems: some View {
+        ForEach(catalog, id: \.identifier) { badge in
+            Button {
+                toggle(badge.identifier)
+            } label: {
+                badgeMenuLabel(for: badge)
+            }
+        }
+    }
+
+    private func badgeMenuLabel(for badge: BadgeDefinition) -> some View {
+        let systemImage = selectedIDs.contains(badge.identifier) ? "checkmark" : badge.systemImage
+        return Label(badge.title, systemImage: systemImage)
     }
 
     private func toggle(_ identifier: String) {
@@ -154,69 +166,10 @@ struct AddCustomBadgeSheet: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section {
-                    TextField("Badge name", text: $title)
-                        .textInputAutocapitalization(.words)
-                } header: {
-                    Text("New Badge")
-                }
-
-                Section {
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: K.Spacing.sm) {
-                            ForEach(BadgeTintPalette.allCases) { palette in
-                                Button {
-                                    selectedPalette = palette
-                                } label: {
-                                    Text(palette.title)
-                                        .font(K.Typography.badgeCompact)
-                                }
-                                .buttonStyle(selectedPalette == palette ? .borderedProminent : .bordered)
-                                .buttonBorderShape(.capsule)
-                                .controlSize(.small)
-                                .tint(palette.color)
-                            }
-                        }
-                    }
-                    .padding(.vertical, K.Spacing.xs)
-                } header: {
-                    Text("Color")
-                }
-
-                Section {
-                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 44))], spacing: K.Spacing.sm) {
-                        ForEach(Self.iconOptions, id: \.self) { icon in
-                            Button {
-                                selectedIcon = icon
-                            } label: {
-                                Image(systemName: icon)
-                                    .font(.body.weight(.semibold))
-                                    .frame(width: 44, height: 44)
-                            }
-                            .buttonStyle(selectedIcon == icon ? .borderedProminent : .bordered)
-                            .buttonBorderShape(.circle)
-                            .controlSize(.large)
-                            .tint(selectedPalette.color)
-                        }
-                    }
-                    .padding(.vertical, K.Spacing.xs)
-                } header: {
-                    Text("Icon")
-                }
-
-                if !customBadges.isEmpty {
-                    Section {
-                        ForEach(customBadges, id: \.identifier) { badge in
-                            HStack(spacing: K.Spacing.sm) {
-                                BadgeDefinitionLabel(badge: badge, style: .compact)
-                                Spacer(minLength: 0)
-                            }
-                        }
-                        .onDelete(perform: deleteCustomBadges)
-                    } header: {
-                        Text("Your Custom Badges")
-                    }
-                }
+                nameSection
+                colorSection
+                iconSection
+                customBadgesSection
             }
             .navigationTitle("Custom Badge")
             .navigationBarTitleDisplayMode(.inline)
@@ -236,6 +189,116 @@ struct AddCustomBadgeSheet: View {
             }
         }
         .presentationDetents([.medium, .large])
+    }
+
+    private var nameSection: some View {
+        Section {
+            TextField("Badge name", text: $title)
+                .textInputAutocapitalization(.words)
+        } header: {
+            Text("New Badge")
+        }
+    }
+
+    private var colorSection: some View {
+        Section {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: K.Spacing.sm) {
+                    ForEach(BadgeTintPalette.allCases) { palette in
+                        paletteButton(for: palette)
+                    }
+                }
+            }
+            .padding(.vertical, K.Spacing.xs)
+        } header: {
+            Text("Color")
+        }
+    }
+
+    private var iconSection: some View {
+        Section {
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 44))], spacing: K.Spacing.sm) {
+                ForEach(Self.iconOptions, id: \.self) { icon in
+                    iconButton(for: icon)
+                }
+            }
+            .padding(.vertical, K.Spacing.xs)
+        } header: {
+            Text("Icon")
+        }
+    }
+
+    @ViewBuilder
+    private var customBadgesSection: some View {
+        if !customBadges.isEmpty {
+            Section {
+                ForEach(customBadges, id: \.identifier) { badge in
+                    HStack(spacing: K.Spacing.sm) {
+                        BadgeDefinitionLabel(badge: badge, style: .compact)
+                        Spacer(minLength: 0)
+                    }
+                }
+                .onDelete(perform: deleteCustomBadges)
+            } header: {
+                Text("Your Custom Badges")
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func paletteButton(for palette: BadgeTintPalette) -> some View {
+        if selectedPalette == palette {
+            Button {
+                selectedPalette = palette
+            } label: {
+                Text(palette.title)
+                    .font(K.Typography.badgeCompact)
+            }
+            .buttonStyle(.borderedProminent)
+            .buttonBorderShape(.capsule)
+            .controlSize(.small)
+            .tint(palette.color)
+        } else {
+            Button {
+                selectedPalette = palette
+            } label: {
+                Text(palette.title)
+                    .font(K.Typography.badgeCompact)
+            }
+            .buttonStyle(.bordered)
+            .buttonBorderShape(.capsule)
+            .controlSize(.small)
+            .tint(palette.color)
+        }
+    }
+
+    @ViewBuilder
+    private func iconButton(for icon: String) -> some View {
+        if selectedIcon == icon {
+            Button {
+                selectedIcon = icon
+            } label: {
+                Image(systemName: icon)
+                    .font(.body.weight(.semibold))
+                    .frame(width: 44, height: 44)
+            }
+            .buttonStyle(.borderedProminent)
+            .buttonBorderShape(.circle)
+            .controlSize(.large)
+            .tint(selectedPalette.color)
+        } else {
+            Button {
+                selectedIcon = icon
+            } label: {
+                Image(systemName: icon)
+                    .font(.body.weight(.semibold))
+                    .frame(width: 44, height: 44)
+            }
+            .buttonStyle(.bordered)
+            .buttonBorderShape(.circle)
+            .controlSize(.large)
+            .tint(selectedPalette.color)
+        }
     }
 
     private var errorBinding: Binding<Bool> {

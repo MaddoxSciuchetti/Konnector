@@ -7,9 +7,9 @@ final class BadgeDefinition {
     @Attribute(.unique) var identifier: String
     var title: String
     var systemImage: String
-    var usesPrimaryTint: Bool
-    var tintPaletteKey: String
-    var isCustom: Bool
+    var usesPrimaryTint: Bool = true
+    var tintPaletteKey: String = BadgeTintPalette.primary.rawValue
+    var isCustom: Bool = false
     var createdAt: Date
     var sortOrder: Int
 
@@ -48,9 +48,10 @@ final class BadgeDefinition {
 
 enum BadgeCatalogService {
     static func ensureDefaults(in context: ModelContext) throws {
-        var descriptor = FetchDescriptor<BadgeDefinition>()
-        descriptor.fetchLimit = 1
-        guard try context.fetch(descriptor).isEmpty else { return }
+        let existing = try context.fetch(FetchDescriptor<BadgeDefinition>())
+        backfillLegacyBadgeFields(existing)
+
+        guard existing.isEmpty else { return }
 
         for (index, builtin) in ContactBadge.allCases.enumerated() {
             context.insert(
@@ -64,6 +65,19 @@ enum BadgeCatalogService {
                     sortOrder: index
                 )
             )
+        }
+    }
+
+    private static func backfillLegacyBadgeFields(_ badges: [BadgeDefinition]) {
+        for badge in badges where badge.tintPaletteKey.isEmpty {
+            if let builtin = ContactBadge(rawValue: badge.identifier) {
+                badge.tintPaletteKey = builtin.tintPalette.rawValue
+                badge.usesPrimaryTint = builtin.usesPrimaryTint
+            } else {
+                badge.tintPaletteKey = badge.usesPrimaryTint
+                    ? BadgeTintPalette.primary.rawValue
+                    : BadgeTintPalette.secondary.rawValue
+            }
         }
     }
 
