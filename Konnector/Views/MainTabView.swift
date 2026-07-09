@@ -26,25 +26,35 @@ enum ContactSearchMode: String, CaseIterable {
         switch self {
         case .standard: "magnifyingglass"
         case .ai: "sparkles"
+        case .graph: "point.3.connected.trianglepath.dotted"
         }
     }
 }
 
 struct MainTabView: View {
+    @State private var selectedTab = MainTab.contacts
     @State private var searchText = ""
     @State private var searchMode = ContactSearchMode.standard
 
     var body: some View {
-        TabView {
-            Tab("Contacts", systemImage: "person.2") {
-                ContactListView()
-            }
+        if #available(iOS 27.0, *) {
+            tabViewWithProminentContacts()
+        } else {
+            tabViewWithCenteredContacts()
+        }
+    }
 
-            Tab("Follow Up", systemImage: "checklist") {
+    private var tabViewWithCenteredContacts: some View {
+        TabView(selection: $selectedTab) {
+            Tab("Follow Up", systemImage: "checklist", value: MainTab.followUp) {
                 FollowUpView()
             }
 
-            Tab("Search", systemImage: "magnifyingglass") {
+            Tab("Contacts", systemImage: "person.2", value: MainTab.contacts) {
+                ContactListView()
+            }
+
+            Tab("Search", systemImage: "magnifyingglass", value: MainTab.search, role: .search) {
                 SearchContactsView(
                     searchText: $searchText,
                     searchMode: $searchMode
@@ -52,6 +62,32 @@ struct MainTabView: View {
             }
         }
     }
+
+    @available(iOS 27.0, *)
+    private var tabViewWithProminentContacts: some View {
+        TabView(selection: $selectedTab) {
+            Tab("Follow Up", systemImage: "checklist", value: MainTab.followUp) {
+                FollowUpView()
+            }
+
+            Tab("Contacts", systemImage: "person.2", value: MainTab.contacts, role: .prominent) {
+                ContactListView()
+            }
+
+            Tab("Search", systemImage: "magnifyingglass", value: MainTab.search, role: .search) {
+                SearchContactsView(
+                    searchText: $searchText,
+                    searchMode: $searchMode
+                )
+            }
+        }
+    }
+}
+
+private enum MainTab: Hashable {
+    case followUp
+    case contacts
+    case search
 }
 
 private struct FollowUpView: View {
