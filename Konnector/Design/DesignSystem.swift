@@ -100,6 +100,7 @@ enum K {
         static let buttonLarge = Font.body.weight(.semibold)
         static let buttonMedium = Font.subheadline.weight(.semibold)
         static let buttonSmall = Font.caption.weight(.semibold)
+        static let badgeMini = Font.caption2.weight(.semibold)
         static let badgeCompact = Font.caption.weight(.semibold)
         static let badgeRegular = Font.subheadline.weight(.semibold)
     }

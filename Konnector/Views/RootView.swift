@@ -39,6 +39,7 @@ struct RootView: View {
                 OnboardingView(hasCompletedOnboarding: $hasCompletedOnboarding)
             }
         }
+        .kDismissKeyboardOnTapOutside()
         .task {
             await syncService.refreshAuthorization()
         }

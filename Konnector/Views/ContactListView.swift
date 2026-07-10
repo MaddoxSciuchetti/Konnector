@@ -167,7 +167,7 @@ struct ContactRow: View {
                     }
                 }
 
-                ContactBadgesRow(badgeIDs: contact.badgeIDs, style: .compact)
+                ContactBadgesRow(badgeIDs: contact.badgeIDs, style: .compact, displayLimit: 3)
 
                 ContactScoreProgressBar(score: contact.overallScore)
             }

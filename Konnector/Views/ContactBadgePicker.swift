@@ -13,15 +13,16 @@ struct ContactTagPill: View {
     var style: Style = .regular
 
     private var font: Font {
-        style == .compact ? K.Typography.badgeCompact : K.Typography.badgeRegular
+        style == .compact ? K.Typography.badgeMini : K.Typography.badgeRegular
     }
 
     var body: some View {
         Button(action: {}) {
             Label(title, systemImage: icon)
                 .font(font)
-                .padding(.horizontal, style == .compact ? K.Spacing.sm : K.Spacing.md)
-                .padding(.vertical, style == .compact ? K.Spacing.xs : K.Spacing.sm)
+                .lineLimit(1)
+                .padding(.horizontal, style == .compact ? K.Spacing.xs : K.Spacing.md)
+                .padding(.vertical, style == .compact ? K.Spacing.xs / 2 : K.Spacing.sm)
         }
         .buttonStyle(.kGlassCapsule(tint: tint, isSelected: true))
         .allowsHitTesting(false)
@@ -45,6 +46,7 @@ struct BadgeDefinitionLabel: View {
 struct ContactBadgesRow: View {
     let badgeIDs: [String]
     var style: ContactTagPill.Style = .compact
+    var displayLimit: Int?
     @Query(sort: \BadgeDefinition.sortOrder) private var catalog: [BadgeDefinition]
 
     private var assignedBadges: [BadgeDefinition] {
@@ -54,10 +56,15 @@ struct ContactBadgesRow: View {
             .sorted { $0.sortOrder < $1.sortOrder }
     }
 
+    private var visibleBadges: [BadgeDefinition] {
+        guard let displayLimit else { return assignedBadges }
+        return Array(assignedBadges.prefix(displayLimit))
+    }
+
     var body: some View {
-        if !assignedBadges.isEmpty {
-            HStack(spacing: K.Spacing.sm) {
-                ForEach(assignedBadges, id: \.identifier) { badge in
+        if !visibleBadges.isEmpty {
+            HStack(spacing: style == .compact ? K.Spacing.xs : K.Spacing.sm) {
+                ForEach(visibleBadges, id: \.identifier) { badge in
                     BadgeDefinitionLabel(badge: badge, style: style)
                 }
             }
