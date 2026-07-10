@@ -231,6 +231,11 @@ final class ContactSnapshot {
         linkedInConnectedAt != nil
     }
 
+    var savedOrDetectedLinkedInProfileURL: String? {
+        if !linkedInProfileURL.isEmpty { return linkedInProfileURL }
+        return detectedLinkedInProfileURL
+    }
+
     /// LinkedIn profile URL from synced contact fields, if available.
     var detectedLinkedInProfileURL: String? {
         for profile in socialProfiles where profile.service.localizedCaseInsensitiveContains("linkedin") {
@@ -254,11 +259,22 @@ final class ContactSnapshot {
     func markLinkedInConnected(profileURL: String? = nil) {
         linkedInConnectedAt = .now
 
-        if let profileURL, let normalized = LinkedInConnectionService.normalizedProfileURL(from: profileURL) {
+        if let profileURL, let normalized = LinkedInConnectionService.normalizedPersonProfileURL(from: profileURL) {
             linkedInProfileURL = normalized
         } else if linkedInProfileURL.isEmpty, let detectedProfileURL = detectedLinkedInProfileURL {
             linkedInProfileURL = detectedProfileURL
         }
+    }
+
+    func saveLinkedInProfileURL(_ profileURL: String) {
+        guard let normalized = LinkedInConnectionService.normalizedPersonProfileURL(from: profileURL) else { return }
+        linkedInProfileURL = normalized
+        linkedInConnectedAt = .now
+    }
+
+    func clearLinkedInProfileURL() {
+        linkedInProfileURL = ""
+        linkedInConnectedAt = nil
     }
 
     func matches(search query: String) -> Bool {

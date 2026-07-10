@@ -61,6 +61,16 @@ enum LinkedInConnectionService {
         return normalized
     }
 
+    static func normalizedPersonProfileURL(from rawValue: String) -> String? {
+        guard let normalized = normalizedProfileURL(from: rawValue),
+              profileSlug(from: normalized) != nil
+        else {
+            return nil
+        }
+
+        return normalized
+    }
+
     static func profileSlug(from profileURL: String) -> String? {
         guard let url = URL(string: profileURL),
               let host = url.host?.lowercased(),
@@ -79,6 +89,7 @@ enum LinkedInConnectionService {
         return pathComponents[markerIndex + 1]
     }
 
+    @MainActor
     static func isLinkedInAppInstalled() -> Bool {
         #if canImport(UIKit)
         guard let url = URL(string: "linkedin://") else { return false }
@@ -89,6 +100,7 @@ enum LinkedInConnectionService {
     }
 
     @discardableResult
+    @MainActor
     static func openQRScanner() -> Bool {
         #if canImport(UIKit)
         for url in qrScannerCandidateURLs where UIApplication.shared.canOpenURL(url) {
@@ -99,6 +111,7 @@ enum LinkedInConnectionService {
         return false
     }
 
+    @MainActor
     static func openQRScannerOrAppStore() throws {
         if openQRScanner() {
             return
@@ -111,6 +124,7 @@ enum LinkedInConnectionService {
         #endif
     }
 
+    @MainActor
     static func openProfile(_ profileURL: String) throws {
         guard let normalized = normalizedProfileURL(from: profileURL),
               let webURL = URL(string: normalized)
@@ -127,6 +141,30 @@ enum LinkedInConnectionService {
         }
 
         UIApplication.shared.open(webURL, options: [:], completionHandler: nil)
+        #else
+        throw LinkedInConnectionError.appUnavailable
+        #endif
+    }
+
+    @MainActor
+    static func openPeopleSearch(query: String) throws {
+        let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty,
+              var components = URLComponents(string: "https://www.linkedin.com/search/results/people/")
+        else {
+            throw LinkedInConnectionError.invalidProfileURL
+        }
+
+        components.queryItems = [
+            URLQueryItem(name: "keywords", value: trimmed)
+        ]
+
+        guard let searchURL = components.url else {
+            throw LinkedInConnectionError.invalidProfileURL
+        }
+
+        #if canImport(UIKit)
+        UIApplication.shared.open(searchURL, options: [:], completionHandler: nil)
         #else
         throw LinkedInConnectionError.appUnavailable
         #endif

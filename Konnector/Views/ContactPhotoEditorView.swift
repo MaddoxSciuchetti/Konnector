@@ -22,7 +22,6 @@ struct ContactPhotoEditorView: View {
     @State private var isPhotosPickerPresented = false
     @State private var isSaving = false
     @State private var loadError: String?
-    @State private var didAutoPresentPicker = false
 
     private let cropDiameter: CGFloat = 280
     private let minScale: CGFloat = 1
@@ -84,11 +83,7 @@ struct ContactPhotoEditorView: View {
             .onAppear {
                 if let existingImageData, let image = UIImage(data: existingImageData), sourceImage == nil {
                     applySourceImage(image)
-                    return
                 }
-                guard !didAutoPresentPicker, sourceImage == nil else { return }
-                didAutoPresentPicker = true
-                isPhotosPickerPresented = true
             }
         }
         .presentationDetents([.large])
