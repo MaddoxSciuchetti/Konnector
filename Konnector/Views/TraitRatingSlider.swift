@@ -20,7 +20,7 @@ enum TraitScore {
     }
 
     static func color(for value: Int) -> Color {
-        K.Color.blend(from: K.Color.secondary, to: .green, amount: progress(for: value))
+        K.Color.blend(from: K.Color.secondary, to: K.Color.success, amount: progress(for: value))
     }
 
     static func formatted(_ score: Double) -> String {
@@ -120,7 +120,9 @@ private struct ScoreProgressRing: View {
                 )
             }
 
-            drawIndicatorDot(in: &context, metrics: metrics)
+            if showsIndicatorDot {
+                drawIndicatorDot(in: &context, metrics: metrics)
+            }
         }
         .aspectRatio(1, contentMode: .fit)
         .animation(.smooth(duration: 0.35), value: clampedProgress)
@@ -129,20 +131,38 @@ private struct ScoreProgressRing: View {
 
     private func drawIndicatorDot(in context: inout GraphicsContext, metrics: RingMetrics) {
         let dotCenter = metrics.point(on: endAngle)
-        let dotRect = CGRect(
-            x: dotCenter.x - dotDiameter / 2,
-            y: dotCenter.y - dotDiameter / 2,
-            width: dotDiameter,
-            height: dotDiameter
+        // Keep fill + stroke inside the ring thickness so the border never
+        // spills past the green bar or the outer track circle.
+        let strokeWidth = min(1.25, max(0.6, lineWidth * 0.28))
+        let outerDiameter = min(dotDiameter, max(0, lineWidth - strokeWidth))
+        let strokeDiameter = max(0, outerDiameter - strokeWidth)
+        let fillDiameter = max(0, strokeDiameter - strokeWidth)
+
+        let fillRect = CGRect(
+            x: dotCenter.x - fillDiameter / 2,
+            y: dotCenter.y - fillDiameter / 2,
+            width: fillDiameter,
+            height: fillDiameter
         )
-        var dotPath = Path(ellipseIn: dotRect)
-        context.fill(dotPath, with: .color(color))
-        context.fill(dotPath, with: .color(.white.opacity(0.82)))
+        let strokeRect = CGRect(
+            x: dotCenter.x - strokeDiameter / 2,
+            y: dotCenter.y - strokeDiameter / 2,
+            width: strokeDiameter,
+            height: strokeDiameter
+        )
+        var fillPath = Path(ellipseIn: fillRect)
+        var strokePath = Path(ellipseIn: strokeRect)
+        context.fill(fillPath, with: .color(color))
+        context.fill(fillPath, with: .color(.white.opacity(0.82)))
         context.stroke(
-            dotPath,
+            strokePath,
             with: .color(color),
-            lineWidth: min(1.5, max(0.75, lineWidth * 0.35))
+            lineWidth: strokeWidth
         )
+    }
+
+    private var showsIndicatorDot: Bool {
+        clampedProgress > 0.001 && clampedProgress < 0.999
     }
 }
 
@@ -174,66 +194,109 @@ private struct RingMetrics {
 struct TraitRatingSlider: View {
     let title: String
     @Binding var value: Int
+    var dialSize: CGFloat = 112
 
-    private let range = TraitScore.minValue...TraitScore.maxValue
-    private let dialSize: CGFloat = 112
-    private let ringWidth: CGFloat = 10
+    private var ringWidth: CGFloat {
+        max(8, min(14, dialSize * 0.09))
+    }
 
     private var progress: Double {
         TraitScore.progress(for: value)
     }
 
+    private var valueFontSize: CGFloat {
+        dialSize * 0.25
+    }
+
     var body: some View {
         VStack(spacing: K.Spacing.md) {
             Text(title)
-                .font(.headline)
+                .font(dialSize >= 130 ? .title3.weight(.semibold) : .headline)
 
-            ZStack {
-                ScoreProgressRing(
-                    progress: progress,
-                    color: TraitScore.color(for: value),
-                    lineWidth: ringWidth,
-                    endCapScale: 1.15
-                )
-
-                Circle()
-                    .fill(TraitScore.color(for: value).opacity(0.1))
-                    .padding(ringWidth + 8)
-
-                Text("\(value)")
-                    .font(.system(size: 28, weight: .bold, design: .rounded))
-                    .foregroundStyle(TraitScore.color(for: value))
-                    .monospacedDigit()
-                    .contentTransition(.numericText())
-                    .animation(.smooth, value: value)
-
-                Image(systemName: "chevron.up")
-                    .font(.caption2.weight(.bold))
-                    .foregroundStyle(.tertiary)
-                    .offset(y: -(dialSize / 2 - ringWidth - 2))
-            }
-            .frame(width: dialSize, height: dialSize)
-            .background {
-                GeometryReader { geometry in
-                    Color.clear
-                        .contentShape(Circle())
-                        .gesture(
-                            DragGesture(minimumDistance: 0)
-                                .onChanged { gesture in
-                                    value = rating(at: gesture.location, in: geometry.size)
-                                }
-                        )
+            dial
+                .frame(width: dialSize, height: dialSize)
+                .contentShape(Circle())
+                // Gesture must live on the dial itself — a Color.clear `.background`
+                // is not hit-tested, so drags never reached the recognizer.
+                // highPriorityGesture also wins over the parent ScrollView's pan.
+                .highPriorityGesture(dialDragGesture)
+                .accessibilityValue("\(value) out of \(TraitScore.maxValue)")
+                .accessibilityHint("Drag clockwise around the circle to increase the rating.")
+                .accessibilityAdjustableAction { direction in
+                    switch direction {
+                    case .increment:
+                        value = TraitScore.clamped(value + 1)
+                    case .decrement:
+                        value = TraitScore.clamped(value - 1)
+                    @unknown default:
+                        break
+                    }
                 }
-            }
-            .accessibilityHint("Drag clockwise around the circle to increase the rating.")
         }
-        .frame(maxWidth: .infinity)
+    }
+
+    private var dial: some View {
+        ZStack {
+            ScoreProgressRing(
+                progress: progress,
+                color: TraitScore.color(for: value),
+                lineWidth: ringWidth,
+                endCapScale: 1
+            )
+
+            Circle()
+                .fill(TraitScore.color(for: value).opacity(0.1))
+                .padding(ringWidth + 8)
+
+            Text("\(value)")
+                .font(.system(size: valueFontSize, weight: .bold, design: .rounded))
+                .foregroundStyle(TraitScore.color(for: value))
+                .monospacedDigit()
+                .contentTransition(.numericText())
+                .animation(.smooth, value: value)
+        }
+    }
+
+    private var dialDragGesture: some Gesture {
+        DragGesture(minimumDistance: 0)
+            .onChanged { gesture in
+                value = rating(
+                    at: gesture.location,
+                    in: CGSize(width: dialSize, height: dialSize)
+                )
+            }
     }
 
     private func rating(at location: CGPoint, in size: CGSize) -> Int {
         let metrics = RingMetrics(size: size, lineWidth: ringWidth)
         let angle = atan2(location.y - metrics.center.y, location.x - metrics.center.x)
         return TraitScore.value(for: angle)
+    }
+}
+
+struct ContactScoreProgressBar: View {
+    let score: Double
+
+    private var progress: Double {
+        TraitScore.progress(for: score)
+    }
+
+    private var scoreColor: Color {
+        TraitScore.color(for: Int(score.rounded()))
+    }
+
+    var body: some View {
+        ProgressView(value: progress) {
+            Text("Score")
+                .font(.caption)
+        } currentValueLabel: {
+            Text(TraitScore.formatted(score))
+                .font(.caption.weight(.semibold))
+                .monospacedDigit()
+        }
+        .tint(scoreColor)
+        .foregroundStyle(.secondary)
+        .accessibilityLabel("Overall score \(TraitScore.formatted(score)) out of 10")
     }
 }
 
@@ -277,7 +340,9 @@ struct TraitScoreCircle: View {
     let value: Double
     let size: CGFloat
 
-    private let ringWidth: CGFloat = 10
+    private var ringWidth: CGFloat {
+        max(6, min(10, size * 0.12))
+    }
 
     private var displayValue: Int {
         Int(value.rounded())
@@ -291,23 +356,29 @@ struct TraitScoreCircle: View {
         TraitScore.color(for: displayValue)
     }
 
+    private var titleFont: Font {
+        size < 90 ? .caption.weight(.semibold) : .subheadline.weight(.semibold)
+    }
+
     var body: some View {
-        VStack(spacing: 10) {
+        VStack(spacing: size < 90 ? K.Spacing.sm : 10) {
             Text(title)
-                .font(.subheadline.weight(.semibold))
+                .font(titleFont)
                 .foregroundStyle(.secondary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
 
             ZStack {
                 ScoreProgressRing(
                     progress: progress,
                     color: scoreColor,
                     lineWidth: ringWidth,
-                    endCapScale: 1.15
+                    endCapScale: 1
                 )
 
                 Circle()
                     .fill(scoreColor.opacity(0.1))
-                    .padding(ringWidth + 14)
+                    .padding(ringWidth + max(6, size * 0.12))
 
                 VStack(spacing: 2) {
                     Text(TraitScore.formatted(value))

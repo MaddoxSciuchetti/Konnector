@@ -16,19 +16,14 @@ struct ContactTagPill: View {
         style == .compact ? K.Typography.badgeCompact : K.Typography.badgeRegular
     }
 
-    private var controlSize: ControlSize {
-        style == .compact ? .small : .regular
-    }
-
     var body: some View {
         Button(action: {}) {
             Label(title, systemImage: icon)
                 .font(font)
+                .padding(.horizontal, style == .compact ? K.Spacing.sm : K.Spacing.md)
+                .padding(.vertical, style == .compact ? K.Spacing.xs : K.Spacing.sm)
         }
-        .buttonStyle(.bordered)
-        .buttonBorderShape(.capsule)
-        .controlSize(controlSize)
-        .tint(tint)
+        .buttonStyle(.kGlassCapsule(tint: tint, isSelected: true))
         .allowsHitTesting(false)
     }
 }
@@ -114,11 +109,9 @@ struct ContactBadgePicker: View {
             Label("Choose Badges", systemImage: "tag")
                 .font(K.Typography.buttonMedium)
                 .frame(maxWidth: .infinity)
+                .padding(.vertical, K.Spacing.sm)
         }
-        .buttonStyle(.bordered)
-        .buttonBorderShape(.capsule)
-        .controlSize(.large)
-        .tint(K.Color.primary)
+        .buttonStyle(.kGlassCapsule(tint: K.Color.primary))
     }
 
     @ViewBuilder
@@ -247,58 +240,26 @@ struct AddCustomBadgeSheet: View {
 
     @ViewBuilder
     private func paletteButton(for palette: BadgeTintPalette) -> some View {
-        if selectedPalette == palette {
-            Button {
-                selectedPalette = palette
-            } label: {
-                Text(palette.title)
-                    .font(K.Typography.badgeCompact)
-            }
-            .buttonStyle(.borderedProminent)
-            .buttonBorderShape(.capsule)
-            .controlSize(.small)
-            .tint(palette.color)
-        } else {
-            Button {
-                selectedPalette = palette
-            } label: {
-                Text(palette.title)
-                    .font(K.Typography.badgeCompact)
-            }
-            .buttonStyle(.bordered)
-            .buttonBorderShape(.capsule)
-            .controlSize(.small)
-            .tint(palette.color)
+        Button {
+            selectedPalette = palette
+        } label: {
+            Text(palette.title)
+                .font(K.Typography.badgeCompact)
+                .padding(.horizontal, K.Spacing.md)
+                .padding(.vertical, K.Spacing.xs)
         }
+        .buttonStyle(.kGlassCapsule(tint: palette.color, isSelected: selectedPalette == palette))
     }
 
     @ViewBuilder
     private func iconButton(for icon: String) -> some View {
-        if selectedIcon == icon {
-            Button {
-                selectedIcon = icon
-            } label: {
-                Image(systemName: icon)
-                    .font(.body.weight(.semibold))
-                    .frame(width: 44, height: 44)
-            }
-            .buttonStyle(.borderedProminent)
-            .buttonBorderShape(.circle)
-            .controlSize(.large)
-            .tint(selectedPalette.color)
-        } else {
-            Button {
-                selectedIcon = icon
-            } label: {
-                Image(systemName: icon)
-                    .font(.body.weight(.semibold))
-                    .frame(width: 44, height: 44)
-            }
-            .buttonStyle(.bordered)
-            .buttonBorderShape(.circle)
-            .controlSize(.large)
-            .tint(selectedPalette.color)
+        Button {
+            selectedIcon = icon
+        } label: {
+            Image(systemName: icon)
+                .font(.body.weight(.semibold))
         }
+        .buttonStyle(.kGlassCircle(tint: selectedPalette.color, isSelected: selectedIcon == icon))
     }
 
     private var errorBinding: Binding<Bool> {

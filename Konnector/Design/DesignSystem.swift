@@ -6,7 +6,7 @@ import UIKit
 
 // MARK: - Design tokens
 
-/// Konnector design system — 4pt grid, two brand colors, fixed button radii.
+/// Konnector design system — 4pt grid, brand palette, fixed button radii.
 enum K {
     static let unit: CGFloat = 4
 
@@ -107,32 +107,90 @@ enum K {
     // MARK: Brand colors
 
     enum Color {
-        /// Main brand color — primary actions, links, active states.
-        static let primary = SwiftUI.Color("KonnectorPrimary")
-        /// Supporting brand color — secondary actions, structure, low scores.
-        static let secondary = SwiftUI.Color("KonnectorSecondary")
+        // MARK: Palette (asset catalog)
+
+        /// Navy — headers, navigation, structural accents. `#0B1F3A`
+        static let navy = SwiftUI.Color("KonnectorPrimary")
+        /// Bright blue — links, highlights, connection cues. `#1E88E5`
+        static let blue = SwiftUI.Color("KonnectorSecondary")
+        /// Orange — primary CTAs and active states. `#F97316`
+        static let orange = SwiftUI.Color("KonnectorOrange")
+        /// Green — success, growth, positive metrics. `#16A34A`
+        static let green = SwiftUI.Color("KonnectorGreen")
+
+        // MARK: Semantic roles
+
+        /// Interactive accent — links, highlights, app tint.
+        static let primary = blue
+        /// Structural brand — headers, secondary actions, low scores.
+        static let secondary = navy
+        /// Call-to-action and active emphasis.
+        static let accent = orange
+        /// Positive / growth indicators.
+        static let success = green
 
         static let primarySoft = primary.opacity(0.12)
         static let secondarySoft = secondary.opacity(0.12)
+        static let accentSoft = accent.opacity(0.12)
+        static let successSoft = success.opacity(0.12)
         static let primaryMuted = primary.opacity(0.16)
         static let secondaryMuted = secondary.opacity(0.16)
+        static let accentMuted = accent.opacity(0.16)
 
-        static let screenBackground = SwiftUI.Color(.systemGroupedBackground)
-        static let cardBackground = SwiftUI.Color(.systemBackground)
-        static let tileBackground = SwiftUI.Color(.secondarySystemGroupedBackground)
-        static let tileSelectedBackground = SwiftUI.Color(.tertiarySystemGroupedBackground)
+        // MARK: Surfaces & neutrals
 
-        /// Interpolates between the two brand colors. `amount` 0 = secondary, 1 = primary.
+        /// Page background — white in light mode.
+        static let screenBackground = adaptive(
+            light: UIColor(red: 1, green: 1, blue: 1, alpha: 1),
+            dark: .systemBackground
+        )
+        /// Subtle panels, cards, table rows. `#F6F8FA`
+        static let surface = adaptive(
+            light: UIColor(red: 0.965, green: 0.973, blue: 0.980, alpha: 1),
+            dark: .secondarySystemBackground
+        )
+        static let cardBackground = adaptive(
+            light: UIColor(red: 1, green: 1, blue: 1, alpha: 1),
+            dark: .secondarySystemGroupedBackground
+        )
+        static let tileBackground = surface
+        static let tileSelectedBackground = adaptive(
+            light: UIColor(red: 0.929, green: 0.937, blue: 0.949, alpha: 1),
+            dark: .tertiarySystemGroupedBackground
+        )
+
+        /// Main text. `#111827`
+        static let textPrimary = adaptive(
+            light: UIColor(red: 0.067, green: 0.094, blue: 0.153, alpha: 1),
+            dark: .label
+        )
+        /// Secondary text. `#4B5563`
+        static let textSecondary = adaptive(
+            light: UIColor(red: 0.294, green: 0.333, blue: 0.388, alpha: 1),
+            dark: .secondaryLabel
+        )
+        /// Muted text. `#6B7280`
+        static let textMuted = adaptive(
+            light: UIColor(red: 0.420, green: 0.447, blue: 0.502, alpha: 1),
+            dark: .tertiaryLabel
+        )
+        /// Borders / dividers. `#E5E7EB`
+        static let border = adaptive(
+            light: UIColor(red: 0.898, green: 0.906, blue: 0.922, alpha: 1),
+            dark: .separator
+        )
+
+        /// Interpolates navy → blue. `amount` 0 = secondary (navy), 1 = primary (blue).
         static func blend(amount: Double) -> SwiftUI.Color {
             blend(from: secondary, to: primary, amount: amount)
         }
 
-        /// Per-badge accents derived from the Konnector primary/secondary blend curve.
-        static let badgeFriend = primary
-        static let badgeColleague = secondary
-        static let badgeClient = blend(amount: 0.28)
-        static let badgeMentor = blend(amount: 0.76)
-        static let badgeFamily = blend(amount: 0.52)
+        /// Distinct per-badge accents so tags read as colorful categories, not brand blends.
+        static let badgeFriend = blue
+        static let badgeColleague = success
+        static let badgeClient = orange
+        static let badgeMentor = SwiftUI.Color(red: 0.49, green: 0.32, blue: 0.86)
+        static let badgeFamily = SwiftUI.Color(red: 0.86, green: 0.28, blue: 0.48)
 
         static func blend(from: SwiftUI.Color, to: SwiftUI.Color, amount: Double) -> SwiftUI.Color {
             let clamped = min(max(amount, 0), 1)
@@ -162,12 +220,26 @@ enum K {
             return clamped < 0.5 ? from : to
             #endif
         }
+
+        #if canImport(UIKit)
+        private static func adaptive(light: UIColor, dark: UIColor) -> SwiftUI.Color {
+            SwiftUI.Color(
+                uiColor: UIColor { traits in
+                    traits.userInterfaceStyle == .dark ? dark : light
+                }
+            )
+        }
+        #else
+        private static func adaptive(light: SwiftUI.Color, dark: SwiftUI.Color) -> SwiftUI.Color {
+            light
+        }
+        #endif
     }
 }
 
 // MARK: - Badge tint palette
 
-/// Brand-derived badge colors for built-in and custom contact tags.
+/// Distinct badge colors for built-in and custom contact tags.
 enum BadgeTintPalette: String, CaseIterable, Identifiable, Sendable {
     case primary
     case secondary
@@ -179,11 +251,11 @@ enum BadgeTintPalette: String, CaseIterable, Identifiable, Sendable {
 
     var title: String {
         switch self {
-        case .primary: "Vibrant"
-        case .secondary: "Slate"
-        case .sky: "Sky"
-        case .slate: "Deep Slate"
-        case .mist: "Mist"
+        case .primary: "Blue"
+        case .secondary: "Green"
+        case .sky: "Violet"
+        case .slate: "Orange"
+        case .mist: "Rose"
         }
     }
 
@@ -224,6 +296,40 @@ extension RoundedRectangle {
     }
 }
 
+// MARK: - Liquid Glass helpers
+
+enum KGlass {
+    static func interactive(tint: Color? = nil) -> Glass {
+        if let tint {
+            return .regular.tint(tint).interactive()
+        }
+        return .regular.interactive()
+    }
+}
+
+extension View {
+    func kButtonGlass(tint: Color? = nil, cornerRadius: CGFloat, isEnabled: Bool = true) -> some View {
+        glassEffect(
+            isEnabled ? KGlass.interactive(tint: tint) : .identity,
+            in: .rect(cornerRadius: cornerRadius)
+        )
+    }
+
+    func kCapsuleGlass(tint: Color? = nil, isEnabled: Bool = true) -> some View {
+        glassEffect(
+            isEnabled ? KGlass.interactive(tint: tint) : .identity,
+            in: .capsule
+        )
+    }
+
+    func kCircleGlass(tint: Color? = nil, isEnabled: Bool = true) -> some View {
+        glassEffect(
+            isEnabled ? KGlass.interactive(tint: tint) : .identity,
+            in: .circle
+        )
+    }
+}
+
 // MARK: - View modifiers
 
 extension View {
@@ -245,7 +351,7 @@ extension View {
         isSelected: Bool,
         selectedFill: SwiftUI.Color = K.Color.tileSelectedBackground,
         unselectedFill: SwiftUI.Color = K.Color.tileBackground,
-        selectedStroke: SwiftUI.Color = K.Color.secondary,
+        selectedStroke: SwiftUI.Color = K.Color.accent,
         radius: CGFloat = K.Radius.tile
     ) -> some View {
         background(
@@ -272,7 +378,7 @@ extension View {
         .background(K.Color.cardBackground, in: RoundedRectangle.k(K.Radius.xl))
         .overlay {
             RoundedRectangle.k(K.Radius.xl)
-                .strokeBorder(K.Color.secondary.opacity(0.14), lineWidth: K.Stroke.hairline)
+                .strokeBorder(K.Color.border, lineWidth: K.Stroke.hairline)
         }
     }
 }

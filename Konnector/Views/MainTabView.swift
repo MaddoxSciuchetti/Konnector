@@ -176,6 +176,8 @@ struct SearchContactsView: View {
     @State private var graphResults: GraphSearchResponse?
     @State private var graphErrorMessage: String?
     @State private var graphSearchTask: Task<Void, Never>?
+    @State private var navigationPath = NavigationPath()
+    @State private var peekContactID: String?
 
     private var groupMode: ContactGroupMode {
         ContactGroupMode(rawValue: groupModeRawValue) ?? .list
@@ -185,8 +187,13 @@ struct SearchContactsView: View {
         contacts.filter { $0.matches(search: searchText) }
     }
 
+    private var peekContact: ContactSnapshot? {
+        guard let peekContactID else { return nil }
+        return contacts.first { $0.sourceIdentifier == peekContactID }
+    }
+
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: $navigationPath) {
             VStack(spacing: 0) {
                 SearchModeToggle(selection: $searchMode)
 
@@ -214,6 +221,7 @@ struct SearchContactsView: View {
             }
             .animation(.snappy, value: searchMode)
             .onChange(of: searchMode) { _, newMode in
+                peekContactID = nil
                 if newMode == .standard {
                     aiSearchTask?.cancel()
                     aiQuery = ""
@@ -235,7 +243,25 @@ struct SearchContactsView: View {
                     aiResults = []
                 }
             }
+            .navigationDestination(for: String.self) { contactID in
+                ContactDetailDestination(contactID: contactID, contacts: contacts)
+            }
         }
+        .overlay {
+            if let peekContact {
+                ContactPeekOverlay(
+                    contact: peekContact,
+                    onOpen: {
+                        let id = peekContact.sourceIdentifier
+                        peekContactID = nil
+                        navigationPath.append(id)
+                    },
+                    onDismiss: { peekContactID = nil }
+                )
+                .transition(.opacity.combined(with: .scale(scale: 0.96)))
+            }
+        }
+        .animation(.snappy(duration: 0.22), value: peekContactID)
         .tint(searchMode == .ai ? K.Color.primary : nil)
     }
 
@@ -411,7 +437,14 @@ struct SearchContactsView: View {
                     .frame(maxHeight: .infinity)
             } else {
                 List {
-                    GroupedContactListContent(contacts: standardResults, groupMode: groupMode)
+                    GroupedContactListContent(
+                        contacts: standardResults,
+                        groupMode: groupMode,
+                        peekContactID: $peekContactID,
+                        onSelectContact: { contactID in
+                            navigationPath.append(contactID)
+                        }
+                    )
                 }
                 .listStyle(.plain)
                 .scrollContentBackground(.hidden)
@@ -522,11 +555,7 @@ private struct SearchModeToggle: View {
             }
         }
         .padding(K.Spacing.xs)
-        .background(K.Color.tileBackground, in: Capsule())
-        .overlay {
-            Capsule()
-                .strokeBorder(Color.primary.opacity(0.08), lineWidth: K.Stroke.hairline)
-        }
+        .glassEffect(.regular, in: .capsule)
         .padding(.horizontal, K.Layout.screenHorizontal)
         .padding(.top, K.Spacing.sm)
         .padding(.bottom, K.Spacing.md)
@@ -536,6 +565,7 @@ private struct SearchModeToggle: View {
 
     private func toggleOption(_ mode: ContactSearchMode) -> some View {
         let isSelected = selection == mode
+        let tint = mode == .ai ? K.Color.primary : mode == .graph ? K.Color.primary.opacity(0.85) : K.Color.secondary
 
         return Button {
             selection = mode
@@ -553,14 +583,14 @@ private struct SearchModeToggle: View {
             .frame(height: K.Size.Button.sm)
             .background {
                 if isSelected {
-                    Capsule()
-                        .fill(mode == .ai ? K.Color.primary : mode == .graph ? K.Color.primary.opacity(0.85) : K.Color.secondary)
+                    Color.clear
                         .matchedGeometryEffect(id: "searchModeSelection", in: selectionNamespace)
                 }
             }
             .contentShape(Capsule())
         }
         .buttonStyle(.plain)
+        .glassEffect(isSelected ? KGlass.interactive(tint: tint) : .identity, in: .capsule)
         .accessibilityLabel(mode.title)
         .accessibilityAddTraits(isSelected ? [.isSelected, .isButton] : .isButton)
     }

@@ -105,6 +105,10 @@ final class ContactSyncService {
         try await contactsClient.fetchContact(identifier: identifier)
     }
 
+    func updateContactPhoto(identifier: String, imageData: Data?) async throws {
+        try await contactsClient.updateContactImage(identifier: identifier, imageData: imageData)
+    }
+
     private func runSyncLoop() async {
         repeat {
             shouldSyncAgain = false

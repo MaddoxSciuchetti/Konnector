@@ -179,6 +179,12 @@ actor DemoContactsClient: ContactsClientProtocol {
         return SystemContact(value: Self.makeContact(from: dto), presentation: .preview)
     }
 
+    func updateContactImage(identifier: String, imageData: Data?) async throws {
+        // Demo contacts are in-memory only; photo updates stay on the local snapshot.
+        _ = identifier
+        _ = imageData
+    }
+
     private static func makeContact(from dto: ContactImportDTO) -> CNContact {
         let contact = CNMutableContact()
         contact.givenName = dto.givenName

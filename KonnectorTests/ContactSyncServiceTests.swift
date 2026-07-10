@@ -132,6 +132,8 @@ private actor MockContactsClient: ContactsClientProtocol {
 
     func fetchContact(identifier: String) async throws -> SystemContact? { nil }
 
+    func updateContactImage(identifier: String, imageData: Data?) async throws {}
+
     func setContacts(_ contacts: [ContactImportDTO]) {
         self.contacts = contacts
     }

@@ -1,5 +1,18 @@
 import SwiftData
 import SwiftUI
+import UIKit
+
+struct ContactDetailDestination: View {
+    let contactID: String
+    let contacts: [ContactSnapshot]
+
+    var body: some View {
+        if let contact = contacts.first(where: { $0.sourceIdentifier == contactID }) {
+            ContactRatingView(contact: contact)
+                .id(contact.sourceIdentifier)
+        }
+    }
+}
 
 struct ContactGroupModePicker: View {
     @AppStorage("contactGroupMode") private var groupMode = ContactGroupMode.list.rawValue
@@ -75,6 +88,8 @@ struct ContactGroupSectionHeader: View {
 struct GroupedContactListContent: View {
     let contacts: [ContactSnapshot]
     let groupMode: ContactGroupMode
+    @Binding var peekContactID: String?
+    var onSelectContact: (String) -> Void
     @Query(sort: \BadgeDefinition.sortOrder) private var badgeCatalog: [BadgeDefinition]
 
     private var sections: [ContactListSection] {
@@ -82,14 +97,24 @@ struct GroupedContactListContent: View {
     }
 
     var body: some View {
-        if groupMode == .list {
-            ContactListRows(contacts: contacts)
-        } else {
-            ForEach(sections) { section in
-                Section {
-                    ContactListRows(contacts: section.contacts)
-                } header: {
-                    ContactGroupSectionHeader(section: section)
+        Group {
+            if groupMode == .list {
+                ContactListRows(
+                    contacts: contacts,
+                    peekContactID: $peekContactID,
+                    onSelectContact: onSelectContact
+                )
+            } else {
+                ForEach(sections) { section in
+                    Section {
+                        ContactListRows(
+                            contacts: section.contacts,
+                            peekContactID: $peekContactID,
+                            onSelectContact: onSelectContact
+                        )
+                    } header: {
+                        ContactGroupSectionHeader(section: section)
+                    }
                 }
             }
         }
@@ -98,19 +123,73 @@ struct GroupedContactListContent: View {
 
 struct ContactListRows: View {
     let contacts: [ContactSnapshot]
+    @Binding var peekContactID: String?
+    var onSelectContact: (String) -> Void
 
     var body: some View {
         ForEach(contacts) { contact in
-            NavigationLink {
-                ContactRatingView(contact: contact)
-            } label: {
-                ContactRow(contact: contact)
-            }
-            .buttonStyle(.plain)
-            .navigationLinkIndicatorVisibility(.hidden)
-            .listRowSeparator(.hidden)
-            .listRowBackground(Color.clear)
-            .listRowInsets(ContactListRowStyle.insets)
+            ContactRow(contact: contact)
+                .contentShape(RoundedRectangle.k(K.Radius.md))
+                .gesture(rowGesture(for: contact))
+                .accessibilityAddTraits(.isButton)
+                .accessibilityAction {
+                    onSelectContact(contact.sourceIdentifier)
+                }
+                .listRowSeparator(.hidden)
+                .listRowBackground(Color.clear)
+                .listRowInsets(ContactListRowStyle.insets)
         }
+    }
+
+    private func rowGesture(for contact: ContactSnapshot) -> some Gesture {
+        LongPressGesture(minimumDuration: 0.45)
+            .exclusively(before: TapGesture())
+            .onEnded { value in
+                switch value {
+                case .first(true):
+                    UIImpactFeedbackGenerator(style: .medium).impactOccurred(intensity: 1)
+                    peekContactID = contact.sourceIdentifier
+                case .second:
+                    UIImpactFeedbackGenerator(style: .light).impactOccurred(intensity: 0.7)
+                    onSelectContact(contact.sourceIdentifier)
+                case .first(false):
+                    break
+                }
+            }
+    }
+}
+
+/// Screen-centered peek card with a full-bleed dimmed backdrop.
+struct ContactPeekOverlay: View {
+    let contact: ContactSnapshot
+    let onOpen: () -> Void
+    let onDismiss: () -> Void
+
+    var body: some View {
+        ZStack {
+            Rectangle()
+                .fill(Color.black.opacity(0.4))
+                .ignoresSafeArea(.all)
+                .contentShape(Rectangle())
+                .onTapGesture(perform: onDismiss)
+
+            VStack(spacing: K.Spacing.sm) {
+                ContactPeekPreview(contact: contact)
+
+                Button {
+                    UIImpactFeedbackGenerator(style: .light).impactOccurred(intensity: 0.8)
+                    onOpen()
+                } label: {
+                    Label("Open Contact", systemImage: "person.crop.circle")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.kPrimary(size: .medium, corner: .standard))
+                .frame(width: ContactPeekLayout.width)
+            }
+            .padding(K.Spacing.sm)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .ignoresSafeArea(.all)
+        .accessibilityAddTraits(.isModal)
     }
 }

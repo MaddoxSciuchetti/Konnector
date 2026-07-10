@@ -43,7 +43,7 @@ struct KonnectorApp: App {
                 .environment(syncService)
                 .environment(graphSyncService)
                 .environment(voiceNoteRecorder)
-                .tint(K.Color.primary)
+                .tint(K.Color.blue)
         }
         .modelContainer(modelContainer)
     }

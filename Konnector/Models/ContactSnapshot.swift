@@ -78,6 +78,8 @@ final class ContactSnapshot {
     var birthdayData: Data?
     var nonGregorianBirthdayData: Data?
     @Attribute(.externalStorage) var thumbnailData: Data?
+    /// True when the user set a photo in Konnector; sync must not overwrite it with the address-book thumbnail.
+    var hasCustomThumbnail: Bool = false
     var synchronizedAt: Date
     var intelligenceRating: Int = 0
     var integrityRating: Int = 0
@@ -376,8 +378,20 @@ final class ContactSnapshot {
         socialProfileValuesData = ContactValueCodec.encode(dto.socialProfiles)
         birthdayData = dto.birthday.map(ContactValueCodec.encode)
         nonGregorianBirthdayData = dto.nonGregorianBirthday.map(ContactValueCodec.encode)
-        thumbnailData = dto.thumbnailData
+        if !hasCustomThumbnail {
+            thumbnailData = dto.thumbnailData
+        }
         self.synchronizedAt = synchronizedAt
+    }
+
+    func applyCustomThumbnail(_ data: Data) {
+        thumbnailData = data
+        hasCustomThumbnail = true
+    }
+
+    func clearCustomThumbnail(restoringSyncedThumbnail synced: Data? = nil) {
+        hasCustomThumbnail = false
+        thumbnailData = synced
     }
 
     func ensureSyncedBirthdayCareItem(in modelContext: ModelContext) {

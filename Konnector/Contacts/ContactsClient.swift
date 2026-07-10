@@ -35,6 +35,7 @@ protocol ContactsClientProtocol: Sendable {
     func requestAccess() async throws -> ContactAuthorization
     func fetchContacts() async throws -> [ContactImportDTO]
     func fetchContact(identifier: String) async throws -> SystemContact?
+    func updateContactImage(identifier: String, imageData: Data?) async throws
 }
 
 actor ContactsClient: ContactsClientProtocol {
@@ -76,6 +77,21 @@ actor ContactsClient: ContactsClientProtocol {
         } catch let error as CNError where error.code == .recordDoesNotExist {
             return nil
         }
+    }
+
+    func updateContactImage(identifier: String, imageData: Data?) async throws {
+        let keys: [CNKeyDescriptor] = [
+            CNContactImageDataKey as CNKeyDescriptor,
+            CNContactThumbnailImageDataKey as CNKeyDescriptor,
+            CNContactIdentifierKey as CNKeyDescriptor
+        ]
+        let contact = try store.unifiedContact(withIdentifier: identifier, keysToFetch: keys)
+        let mutable = contact.mutableCopy() as! CNMutableContact
+        mutable.imageData = imageData
+
+        let saveRequest = CNSaveRequest()
+        saveRequest.update(mutable)
+        try store.execute(saveRequest)
     }
 
     private static var keysToFetch: [CNKeyDescriptor] { [

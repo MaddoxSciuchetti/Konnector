@@ -53,7 +53,7 @@ struct ContactLinkedInConnectView: View {
         VStack(alignment: .leading, spacing: K.Spacing.md) {
             Label("Connected on LinkedIn", systemImage: "checkmark.circle.fill")
                 .font(.subheadline.weight(.semibold))
-                .foregroundStyle(.green)
+                .foregroundStyle(K.Color.success)
 
             if let connectedAt = contact.linkedInConnectedAt {
                 Text("Saved \(connectedAt.formatted(date: .abbreviated, time: .omitted)).")
